@@ -33,14 +33,10 @@ This project provides an online coding environment for pseudocode practice with:
 
 ## Repository Notes
 
-This repository depends on a Git submodule:
-
-- `src/libs/cpc-core` → `https://github.com/Anson2251/vibe-cpc.git`
-
 Clone with submodules enabled:
 
 ```bash
-git clone --recurse-submodules <repo-url>
+git clone --recurse-submodules "https://github.com/Anson2251/cpc-online.git"
 ```
 
 If you already cloned without submodules:
