@@ -41,6 +41,21 @@ export const useVfsStore = defineStore("vfs", () => {
         nodes.value = await indexedDbVfs.listNodes();
     }
 
+    async function refreshDirectoryWithFallback(path: string): Promise<void> {
+        let candidate: string | null = path;
+
+        while (candidate) {
+            try {
+                await refreshDirectory(candidate);
+                return;
+            } catch {
+                candidate = getParentPath(candidate);
+            }
+        }
+
+        await refreshDirectory("/");
+    }
+
     async function openFile(path: string): Promise<void> {
         activePath.value = path;
         activeContent.value = await indexedDbVfs.readTextFile(path);
@@ -57,7 +72,7 @@ export const useVfsStore = defineStore("vfs", () => {
         }
         activeContent.value = content;
         await indexedDbVfs.writeTextFile(activePath.value, content);
-        await refreshDirectory(currentDirectory.value);
+        await refreshDirectoryWithFallback(currentDirectory.value);
         await refreshNodes();
     }
 
@@ -76,7 +91,7 @@ export const useVfsStore = defineStore("vfs", () => {
         }
 
         await indexedDbVfs.createTextFile(filePath);
-        await refreshDirectory(currentDirectory.value);
+        await refreshDirectoryWithFallback(currentDirectory.value);
         await refreshNodes();
         await openFile(filePath);
     }
@@ -87,13 +102,17 @@ export const useVfsStore = defineStore("vfs", () => {
     ): Promise<void> {
         const directoryPath = targetDirectory === "/" ? `/${name}` : `${targetDirectory}/${name}`;
         await indexedDbVfs.createDirectory(directoryPath);
-        await refreshDirectory(currentDirectory.value);
+        await refreshDirectoryWithFallback(currentDirectory.value);
         await refreshNodes();
     }
 
     async function deletePath(path: string): Promise<void> {
         await indexedDbVfs.removePath(path);
-        await refreshDirectory(currentDirectory.value);
+        const nextDirectory =
+            currentDirectory.value === path || currentDirectory.value.startsWith(`${path}/`)
+                ? getParentPath(path) ?? "/"
+                : currentDirectory.value;
+        await refreshDirectoryWithFallback(nextDirectory);
         await refreshNodes();
 
         openedTabs.value = openedTabs.value.filter(
@@ -133,7 +152,13 @@ export const useVfsStore = defineStore("vfs", () => {
 
     async function renamePath(path: string, newName: string): Promise<void> {
         const nextPath = await indexedDbVfs.renamePath(path, newName);
-        await refreshDirectory(currentDirectory.value);
+        const nextDirectory =
+            currentDirectory.value === path
+                ? nextPath
+                : currentDirectory.value.startsWith(`${path}/`)
+                  ? `${nextPath}${currentDirectory.value.slice(path.length)}`
+                  : currentDirectory.value;
+        await refreshDirectoryWithFallback(nextDirectory);
         await refreshNodes();
 
         openedTabs.value = openedTabs.value.map((tab) => {

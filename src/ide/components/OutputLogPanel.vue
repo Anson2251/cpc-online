@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Warning24Regular } from "@vicons/fluent";
+import { Warning24Regular, Delete24Regular } from "@vicons/fluent";
 import { NButton, NCard, NEmpty, NIcon, NSpace, NTag, NText, NVirtualList } from "naive-ui";
 
 import { useRuntimeStore } from "@/ide/stores/runtime";
@@ -16,8 +16,7 @@ const runtime = useRuntimeStore();
     content-style="padding: 0; height: 100%;"
   >
     <template #header-extra>
-      <NSpace>
-        <NButton tertiary size="small" @click="runtime.clearLogs">Clear</NButton>
+      <NSpace align="center">
         <NTag v-if="runtime.lastRunSuccess === false" type="error" size="small">
           <template #icon>
             <NIcon><Warning24Regular /></NIcon>
@@ -27,6 +26,9 @@ const runtime = useRuntimeStore();
         <NTag v-else-if="runtime.lastRunSuccess === true" type="success" size="small">
           Passed
         </NTag>
+        <NButton tertiary size="small" @click="runtime.clearLogs"
+          ><template #icon> <Delete24Regular /></template> Clear</NButton
+        >
       </NSpace>
     </template>
 
@@ -52,6 +54,7 @@ const runtime = useRuntimeStore();
 <style scoped>
 .output-card {
   height: 100%;
+  padding-bottom: 32px;
 }
 
 .output-list {
@@ -67,6 +70,7 @@ const runtime = useRuntimeStore();
   font-size: 12px;
   line-height: 1.35;
   padding: 2px 8px;
+  min-height: 0;
 }
 
 .log-row.stdout {
@@ -83,11 +87,5 @@ const runtime = useRuntimeStore();
 
 .log-text {
   white-space: pre-wrap;
-}
-
-@media (max-width: 900px) {
-  .log-row {
-    grid-template-columns: 72px 1fr;
-  }
 }
 </style>

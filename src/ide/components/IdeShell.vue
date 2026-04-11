@@ -16,7 +16,7 @@ import {
   NTabs,
   useMessage,
 } from "naive-ui";
-import { computed, h, onBeforeUnmount, onMounted, reactive, watch } from "vue";
+import { computed, h, nextTick, onBeforeUnmount, onMounted, reactive, watch } from "vue";
 
 import { useRuntimeStore } from "@/ide/stores/runtime";
 import { useVfsStore } from "@/ide/stores/vfs";
@@ -29,6 +29,8 @@ const vfs = useVfsStore();
 const runtime = useRuntimeStore();
 const message = useMessage();
 const tabContents = reactive<Record<string, string>>({});
+const tabDirty = reactive<Record<string, boolean>>({});
+const editorRefs = reactive<Record<string, { focusEditor?: () => void } | null>>({});
 
 const canRun = computed(() => !runtime.running && Boolean(vfs.activePath));
 const hasTabs = computed(() => vfs.openedTabs.length > 0);
@@ -76,7 +78,11 @@ async function persistActiveFile(): Promise<void> {
   if (!path) {
     return;
   }
+  if (!tabDirty[path]) {
+    return;
+  }
   await vfs.saveActiveFile(tabContents[path] ?? "");
+  tabDirty[path] = false;
 }
 
 function scheduleAutoSave(): void {
@@ -87,9 +93,15 @@ function scheduleAutoSave(): void {
       autoSaveTimer = null;
       return;
     }
+    if (!tabDirty[path]) {
+      autoSaveTimer = null;
+      return;
+    }
 
     autoSaveTimer = null;
-    void vfs.saveActiveFile(tabContents[path] ?? "");
+    void vfs.saveActiveFile(tabContents[path] ?? "").then(() => {
+      tabDirty[path] = false;
+    });
   }, AUTO_SAVE_DEBOUNCE_MS);
 }
 
@@ -98,20 +110,41 @@ async function openFile(path: string): Promise<void> {
   suppressAutoSave = true;
   await vfs.openFile(path);
   tabContents[path] = vfs.activeContent;
+  tabDirty[path] = false;
   suppressAutoSave = false;
   runtime.setActiveFile(path);
+  await focusActiveEditor();
 }
 
 function updateTabContent(path: string, content: string): void {
+  if (tabContents[path] !== content) {
+    tabDirty[path] = true;
+  }
   tabContents[path] = content;
   if (path === vfs.activePath) {
     vfs.activeContent = content;
   }
 }
 
+function setEditorRef(path: string, instance: unknown): void {
+  editorRefs[path] = (instance as { focusEditor?: () => void } | null) ?? null;
+}
+
+async function focusActiveEditor(): Promise<void> {
+  if (!vfs.activePath) {
+    return;
+  }
+  await nextTick();
+  editorRefs[vfs.activePath]?.focusEditor?.();
+}
+
 function tabLabel(path: string): string {
   const chunks = path.split("/").filter(Boolean);
   return chunks[chunks.length - 1] ?? "untitled";
+}
+
+function isPseudocodeFile(path: string): boolean {
+  return path.toLowerCase().endsWith(".pseudo");
 }
 
 async function handleTabChange(name: string | number): Promise<void> {
@@ -129,10 +162,13 @@ async function handleCloseTab(name: string | number): Promise<void> {
   await persistActiveFile();
   await vfs.closeTab(name);
   delete tabContents[name];
+  delete tabDirty[name];
+  delete editorRefs[name];
   if (vfs.activePath && tabContents[vfs.activePath] === undefined) {
     tabContents[vfs.activePath] = vfs.activeContent;
   }
   runtime.setActiveFile(vfs.activePath || "/main.pseudo");
+  await focusActiveEditor();
 }
 
 onMounted(async () => {
@@ -140,9 +176,11 @@ onMounted(async () => {
   await vfs.initialize();
   if (vfs.activePath) {
     tabContents[vfs.activePath] = vfs.activeContent;
+    tabDirty[vfs.activePath] = false;
   }
   suppressAutoSave = false;
   runtime.setActiveFile(vfs.activePath || "/main.pseudo");
+  await focusActiveEditor();
 });
 
 onBeforeUnmount(() => {
@@ -168,27 +206,39 @@ watch(
         delete tabContents[path];
       }
     }
+    for (const path of Object.keys(tabDirty)) {
+      if (!opened.has(path)) {
+        delete tabDirty[path];
+      }
+    }
+    for (const path of Object.keys(editorRefs)) {
+      if (!opened.has(path)) {
+        delete editorRefs[path];
+      }
+    }
   },
 );
 </script>
 
 <template>
   <NLayout class="ide-shell">
-    <NSplit direction="vertical" :default-size="0.66" :min="0.3" :max="0.88">
+    <NSplit direction="horizontal" :default-size="0.3" :min="0.2" :max="0.5">
       <template #1>
-        <NSplit direction="horizontal" :default-size="0.24" :min="0.16" :max="0.45">
+        <div class="explorer-pane">
+          <FileExplorerTree @file-selected="openFile" />
+        </div>
+      </template>
+      <template #2>
+        <NSplit direction="vertical" :default-size="0.75" :min="0.2" :max="0.9">
           <template #1>
-            <div class="explorer-pane">
-              <FileExplorerTree @file-selected="openFile" />
-            </div>
-          </template>
-          <template #2>
             <div style="display: flex; flex-direction: column; height: 100%">
-              <NCard size="small" :bordered="false" content-style="padding: 8px 12px;">
+              <NCard size="small" :bordered="false" content-style="padding: 8px 12px;" v-if="hasTabs">
                 <NSpace justify="space-between" align="center">
                   <NSpace>
                     <NTag type="info" size="small">{{ vfs.activeFileName }}</NTag>
-                    <NTag size="small" type="warning">CAIE PseudoCode</NTag>
+                    <NTag v-if="vfs.activePath && isPseudocodeFile(vfs.activePath)" size="small" type="warning">
+                      CAIE PseudoCode
+                    </NTag>
                   </NSpace>
 
                   <NSpace>
@@ -207,6 +257,7 @@ watch(
               </NCard>
 
               <NCard
+                v-if="hasTabs"
                 size="small"
                 :bordered="false"
                 content-style="padding: 6px 8px 0;"
@@ -247,6 +298,8 @@ watch(
                     class="editor-instance"
                   >
                     <CodeEditor
+                      :ref="(el) => setEditorRef(tabPath, el)"
+                      :enable-pseudocode="isPseudocodeFile(tabPath)"
                       :model-value="tabContents[tabPath] ?? ''"
                       @update:model-value="(value) => updateTabContent(tabPath, value)"
                     />
@@ -255,13 +308,12 @@ watch(
               </NCard>
             </div>
           </template>
+          <template #2>
+            <NLayoutFooter bordered class="console-panel">
+              <OutputLogPanel />
+            </NLayoutFooter>
+          </template>
         </NSplit>
-      </template>
-
-      <template #2>
-        <NLayoutFooter bordered class="console-panel">
-          <OutputLogPanel />
-        </NLayoutFooter>
       </template>
     </NSplit>
   </NLayout>
@@ -274,16 +326,15 @@ watch(
 
 .console-panel {
   height: 100%;
-  padding: 10px 14px;
 }
 
 .editor-card {
   height: 100%;
+  min-height: 0;
 }
 
 .explorer-pane {
   height: 100%;
-  
 }
 
 .empty-editor {
@@ -295,11 +346,5 @@ watch(
 
 .editor-instance {
   height: 100%;
-}
-
-@media (max-width: 900px) {
-  .editor-card {
-    min-height: 320px;
-  }
 }
 </style>

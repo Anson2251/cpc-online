@@ -46,6 +46,21 @@ const itemTargetKind = ref<"file" | "directory">("file");
 
 const selectedKeys = computed(() => (vfs.activePath ? [vfs.activePath] : []));
 
+const childCountByPath = computed(() => {
+  const counts = new Map<string, number>();
+  for (const node of vfs.nodes) {
+    if (!node.parentPath) {
+      continue;
+    }
+    counts.set(node.parentPath, (counts.get(node.parentPath) ?? 0) + 1);
+  }
+  return counts;
+});
+
+function isEmptyDirectory(path: string): boolean {
+  return (childCountByPath.value.get(path) ?? 0) === 0;
+}
+
 const isItemDirectoryEmpty = computed(() => {
   if (itemTargetKind.value !== "directory") {
     return false;
@@ -56,10 +71,23 @@ const isItemDirectoryEmpty = computed(() => {
   return !vfs.nodes.some((node) => node.kind === "file" && node.path.startsWith(prefix));
 });
 
-const surfaceMenuOptions: DropdownOption[] = [
+const isWorkspaceEmpty = computed(() => !vfs.nodes.some((node) => node.kind === "file"));
+
+const baseCreateMenuOptions: DropdownOption[] = [
   { label: "New File", key: "new-file", icon: icon(Add24Regular) },
   { label: "New Folder", key: "new-folder", icon: icon(Folder24Regular) },
 ];
+
+const surfaceMenuOptions = computed<DropdownOption[]>(() => [
+  ...baseCreateMenuOptions,
+  { type: "divider", key: "surface-divider-export" },
+  {
+    label: "Export Workspace Archive",
+    key: "export-workspace-archive",
+    icon: icon(Archive24Regular),
+    disabled: isWorkspaceEmpty.value,
+  },
+]);
 
 const itemMenuOptions = computed<DropdownOption[]>(() => {
   if (itemTargetPath.value === "/") {
@@ -69,7 +97,7 @@ const itemMenuOptions = computed<DropdownOption[]>(() => {
   const options: DropdownOption[] = [];
 
   if (itemTargetKind.value === "directory") {
-    options.push(...surfaceMenuOptions);
+    options.push(...baseCreateMenuOptions);
     options.push({ type: "divider", key: "dir-divider-ops" });
     options.push({
       label: "Export Archive",
@@ -97,10 +125,12 @@ const treeData = computed<TreeOption[]>(() => {
   const childrenMap = new Map<string, TreeOption[]>();
 
   for (const node of vfs.nodes) {
+    const isEmptyDir = node.kind === "directory" && isEmptyDirectory(node.path);
     byPath.set(node.path, {
       key: node.path,
       label: node.name,
-      isLeaf: node.kind === "file",
+      isLeaf: node.kind === "file" || isEmptyDir,
+      children: isEmptyDir ? [] : undefined,
       rawNode: node,
     });
   }
@@ -178,6 +208,9 @@ async function handleTreeSelect(keys: Array<string | number>): Promise<void> {
   }
 
   if (node.kind === "directory") {
+    if (isEmptyDirectory(node.path)) {
+      return;
+    }
     await vfs.refreshDirectory(node.path);
     return;
   }
@@ -208,7 +241,13 @@ function handleTreeContextMenu(event: MouseEvent, option: TreeOption): void {
 }
 
 function treeNodeProps({ option }: { option: TreeOption }) {
+  const rawNode = (option as { rawNode?: { path: string; kind: "file" | "directory" } }).rawNode;
+  const isEmptyDir = Boolean(
+    rawNode && rawNode.kind === "directory" && isEmptyDirectory(rawNode.path),
+  );
+
   return {
+    class: isEmptyDir ? "tree-node-empty-dir" : undefined,
     onContextmenu: (event: MouseEvent) => handleTreeContextMenu(event, option),
   };
 }
@@ -217,14 +256,23 @@ function setExpanded(next: Array<string | number>): void {
   expandedKeys.value = next.filter((item): item is string => typeof item === "string");
 }
 
-function currentWorkingDirectory(): string {
-  if (itemMenuVisible.value && itemTargetKind.value === "directory") {
-    return itemTargetPath.value;
-  }
-
+function surfaceWorkingDirectory(): string {
   if (vfs.currentDirectory) {
     return vfs.currentDirectory;
   }
+  return "/";
+}
+
+function itemWorkingDirectory(): string {
+  if (itemTargetKind.value === "directory") {
+    return itemTargetPath.value;
+  }
+
+  const node = vfs.nodes.find((entry) => entry.path === itemTargetPath.value);
+  if (node?.parentPath) {
+    return node.parentPath;
+  }
+
   return "/";
 }
 
@@ -237,10 +285,10 @@ function handleSurfaceContextMenu(event: MouseEvent): void {
 }
 
 async function handleSurfaceAction(key: string | number): Promise<void> {
+  const targetDirectory = surfaceWorkingDirectory();
   hideMenus();
 
   if (key === "new-file") {
-    const targetDirectory = currentWorkingDirectory();
     const name = window.prompt("New file name", "new-file.pseudo")?.trim();
     if (!name) {
       return;
@@ -256,16 +304,21 @@ async function handleSurfaceAction(key: string | number): Promise<void> {
     if (!name) {
       return;
     }
-    await vfs.createDirectory(name, currentWorkingDirectory());
+    await vfs.createDirectory(name, targetDirectory);
     return;
+  }
+
+  if (key === "export-workspace-archive") {
+    const blob = await exportDirectoryToZip(indexedDbVfs, "/");
+    triggerBrowserDownload(blob, "workspace.zip");
   }
 }
 
 async function handleItemAction(key: string | number): Promise<void> {
+  const targetDirectory = itemWorkingDirectory();
   hideMenus();
 
   if (key === "new-file") {
-    const targetDirectory = currentWorkingDirectory();
     const name = window.prompt("New file name", "new-file.pseudo")?.trim();
     if (!name) {
       return;
@@ -281,7 +334,7 @@ async function handleItemAction(key: string | number): Promise<void> {
     if (!name) {
       return;
     }
-    await vfs.createDirectory(name, currentWorkingDirectory());
+    await vfs.createDirectory(name, targetDirectory);
     return;
   }
 
@@ -416,5 +469,9 @@ onMounted(async () => {
 
 .explorer-scroll {
   height: 100%;
+}
+
+.explorer-scroll :deep(.tree-node-empty-dir .n-tree-node-content__text) {
+  opacity: 0.55;
 }
 </style>
