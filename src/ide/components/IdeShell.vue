@@ -232,11 +232,20 @@ watch(
         <NSplit direction="vertical" :default-size="0.75" :min="0.2" :max="0.9">
           <template #1>
             <div style="display: flex; flex-direction: column; height: 100%">
-              <NCard size="small" :bordered="false" content-style="padding: 8px 12px;" v-if="hasTabs">
+              <NCard
+                size="small"
+                :bordered="false"
+                content-style="padding: 8px 12px;"
+                v-if="hasTabs"
+              >
                 <NSpace justify="space-between" align="center">
                   <NSpace>
                     <NTag type="info" size="small">{{ vfs.activeFileName }}</NTag>
-                    <NTag v-if="vfs.activePath && isPseudocodeFile(vfs.activePath)" size="small" type="warning">
+                    <NTag
+                      v-if="vfs.activePath && isPseudocodeFile(vfs.activePath)"
+                      size="small"
+                      type="warning"
+                    >
                       CAIE PseudoCode
                     </NTag>
                   </NSpace>

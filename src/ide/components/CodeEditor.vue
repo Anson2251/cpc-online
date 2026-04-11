@@ -9,7 +9,14 @@ import {
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { bracketMatching } from "@codemirror/language";
 import { EditorState, type Extension, RangeSetBuilder } from "@codemirror/state";
-import { Decoration, EditorView, keymap, lineNumbers, type DecorationSet, ViewPlugin } from "@codemirror/view";
+import {
+  Decoration,
+  EditorView,
+  keymap,
+  lineNumbers,
+  type DecorationSet,
+  ViewPlugin,
+} from "@codemirror/view";
 import { useThemeVars } from "naive-ui";
 import { onBeforeUnmount, onMounted, ref, watch, computed } from "vue";
 

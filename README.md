@@ -1,54 +1,101 @@
-# .
+# CPC Online IDE
 
-This template should help get you started developing with Vue 3 in Vite.
+Web IDE for CAIE-style pseudocode, built with Vue 3 + Vite. It uses the `cpc-core` interpreter as a Git submodule and runs programs directly in the browser worker.
 
-## Recommended IDE Setup
+## Overview
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+This project provides an online coding environment for pseudocode practice with:
 
-## Recommended Browser Setup
+- File explorer backed by IndexedDB virtual filesystem
+- Multi-tab editor with per-tab history and autosave
+- Pseudocode-aware syntax highlighting and autocomplete
+- Program output panel and runtime diagnostics
+- Workspace archive export and file-level download
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+## Architecture
 
-## Type Support for `.vue` Imports in TS
+```text
+┌───────────────────────────┐
+│        Vue Frontend       │
+│  (IDE shell + components) │
+└────────────┬──────────────┘
+             │
+     ┌───────▼────────┐
+     │  Web Worker    │
+     │ interpreter.ts │
+     └───────┬────────┘
+             │
+  ┌──────────▼───────────┐
+  │  cpc-core submodule  │
+  │ lexer/parser/runtime │
+  └──────────────────────┘
+```
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+## Repository Notes
 
-## Customize configuration
+This repository depends on a Git submodule:
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+- `src/libs/cpc-core` → `https://github.com/Anson2251/vibe-cpc.git`
 
-## Project Setup
+Clone with submodules enabled:
 
-```sh
+```bash
+git clone --recurse-submodules <repo-url>
+```
+
+If you already cloned without submodules:
+
+```bash
+git submodule update --init --recursive
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 20+
+- pnpm 10+
+
+### Install
+
+```bash
 pnpm install
 ```
 
-### Compile and Hot-Reload for Development
+### Development
 
-```sh
+```bash
 pnpm dev
 ```
 
-### Type-Check, Compile and Minify for Production
+### Build
 
-```sh
+```bash
 pnpm build
 ```
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+### Type check
 
-```sh
-pnpm test:unit
+```bash
+pnpm type-check
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+### Lint and format
 
-```sh
+```bash
 pnpm lint
+pnpm format
 ```
+
+## Tech Stack
+
+- Vue 3 + TypeScript
+- Vite
+- Pinia
+- Naive UI
+- CodeMirror 6
+- IndexedDB (`idb`)
+
+## License
+
+This project is licensed under GPL-3.0.

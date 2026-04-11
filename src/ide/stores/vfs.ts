@@ -110,7 +110,7 @@ export const useVfsStore = defineStore("vfs", () => {
         await indexedDbVfs.removePath(path);
         const nextDirectory =
             currentDirectory.value === path || currentDirectory.value.startsWith(`${path}/`)
-                ? getParentPath(path) ?? "/"
+                ? (getParentPath(path) ?? "/")
                 : currentDirectory.value;
         await refreshDirectoryWithFallback(nextDirectory);
         await refreshNodes();
