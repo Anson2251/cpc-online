@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import type { Component } from "vue";
 
-import { Play24Regular, Save24Regular } from "@vicons/fluent";
+import { Play24Regular } from "@vicons/fluent";
 import {
   NButton,
   NCard,
+  NEmpty,
   NIcon,
   NLayout,
-  NLayoutContent,
   NLayoutFooter,
-  NLayoutSider,
   NSpace,
   NSplit,
   NTabPane,
@@ -17,7 +16,7 @@ import {
   NTabs,
   useMessage,
 } from "naive-ui";
-import { computed, h, onMounted } from "vue";
+import { computed, h, onBeforeUnmount, onMounted, reactive, watch } from "vue";
 
 import { useRuntimeStore } from "@/ide/stores/runtime";
 import { useVfsStore } from "@/ide/stores/vfs";
@@ -29,14 +28,32 @@ import OutputLogPanel from "./OutputLogPanel.vue";
 const vfs = useVfsStore();
 const runtime = useRuntimeStore();
 const message = useMessage();
+const tabContents = reactive<Record<string, string>>({});
 
-const canRun = computed(() => !runtime.running);
+const canRun = computed(() => !runtime.running && Boolean(vfs.activePath));
+const hasTabs = computed(() => vfs.openedTabs.length > 0);
+const AUTO_SAVE_DEBOUNCE_MS = 500;
+
+let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+let suppressAutoSave = false;
 
 function icon(iconComp: unknown) {
   return () => h(NIcon, null, { default: () => h(iconComp as Component) });
 }
 
 async function runProgram(): Promise<void> {
+  if (!vfs.activePath) {
+    message.error("No file selected");
+    return;
+  }
+
+  try {
+    await persistActiveFile();
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : "Failed to save file");
+    return;
+  }
+
   runtime.setActiveFile(vfs.activePath);
   await runtime.runActiveFile();
   if (runtime.lastRunSuccess) {
@@ -46,14 +63,50 @@ async function runProgram(): Promise<void> {
   }
 }
 
-async function saveProgram(): Promise<void> {
-  await vfs.saveActiveFile(vfs.activeContent);
-  message.success("Saved");
+function clearAutoSaveTimer(): void {
+  if (autoSaveTimer) {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = null;
+  }
+}
+
+async function persistActiveFile(): Promise<void> {
+  clearAutoSaveTimer();
+  const path = vfs.activePath;
+  if (!path) {
+    return;
+  }
+  await vfs.saveActiveFile(tabContents[path] ?? "");
+}
+
+function scheduleAutoSave(): void {
+  clearAutoSaveTimer();
+  autoSaveTimer = setTimeout(() => {
+    const path = vfs.activePath;
+    if (!path) {
+      autoSaveTimer = null;
+      return;
+    }
+
+    autoSaveTimer = null;
+    void vfs.saveActiveFile(tabContents[path] ?? "");
+  }, AUTO_SAVE_DEBOUNCE_MS);
 }
 
 async function openFile(path: string): Promise<void> {
+  await persistActiveFile();
+  suppressAutoSave = true;
   await vfs.openFile(path);
+  tabContents[path] = vfs.activeContent;
+  suppressAutoSave = false;
   runtime.setActiveFile(path);
+}
+
+function updateTabContent(path: string, content: string): void {
+  tabContents[path] = content;
+  if (path === vfs.activePath) {
+    vfs.activeContent = content;
+  }
 }
 
 function tabLabel(path: string): string {
@@ -73,31 +126,63 @@ async function handleCloseTab(name: string | number): Promise<void> {
     return;
   }
 
-  if (vfs.openedTabs.length === 1) {
-    message.error("The last one!");
-    return;
-  }
-
+  await persistActiveFile();
   await vfs.closeTab(name);
-  runtime.setActiveFile(vfs.activePath);
+  delete tabContents[name];
+  if (vfs.activePath && tabContents[vfs.activePath] === undefined) {
+    tabContents[vfs.activePath] = vfs.activeContent;
+  }
+  runtime.setActiveFile(vfs.activePath || "/main.pseudo");
 }
 
 onMounted(async () => {
+  suppressAutoSave = true;
   await vfs.initialize();
-  runtime.setActiveFile(vfs.activePath);
+  if (vfs.activePath) {
+    tabContents[vfs.activePath] = vfs.activeContent;
+  }
+  suppressAutoSave = false;
+  runtime.setActiveFile(vfs.activePath || "/main.pseudo");
 });
+
+onBeforeUnmount(() => {
+  clearAutoSaveTimer();
+});
+
+watch(
+  () => vfs.activeContent,
+  () => {
+    if (suppressAutoSave) {
+      return;
+    }
+    scheduleAutoSave();
+  },
+);
+
+watch(
+  () => vfs.openedTabs.slice(),
+  (tabs) => {
+    const opened = new Set(tabs);
+    for (const path of Object.keys(tabContents)) {
+      if (!opened.has(path)) {
+        delete tabContents[path];
+      }
+    }
+  },
+);
 </script>
 
 <template>
   <NLayout class="ide-shell">
     <NSplit direction="vertical" :default-size="0.66" :min="0.3" :max="0.88">
       <template #1>
-        <NLayout has-sider style="height: 100%">
-          <NLayoutSider bordered width="280" content-style="padding: 14px;">
-            <FileExplorerTree @file-selected="openFile" />
-          </NLayoutSider>
-
-          <NLayoutContent content-style="padding: 0; height: 100%;">
+        <NSplit direction="horizontal" :default-size="0.24" :min="0.16" :max="0.45">
+          <template #1>
+            <div class="explorer-pane">
+              <FileExplorerTree @file-selected="openFile" />
+            </div>
+          </template>
+          <template #2>
             <div style="display: flex; flex-direction: column; height: 100%">
               <NCard size="small" :bordered="false" content-style="padding: 8px 12px;">
                 <NSpace justify="space-between" align="center">
@@ -107,14 +192,6 @@ onMounted(async () => {
                   </NSpace>
 
                   <NSpace>
-                    <NButton
-                      size="small"
-                      secondary
-                      :render-icon="icon(Save24Regular)"
-                      @click="saveProgram"
-                    >
-                      Save
-                    </NButton>
                     <NButton
                       size="small"
                       type="primary"
@@ -159,11 +236,26 @@ onMounted(async () => {
                 content-style="height: 100%; padding: 0;"
                 style="flex-grow: 1"
               >
-                <CodeEditor v-model="vfs.activeContent" />
+                <div v-if="!hasTabs" class="empty-editor">
+                  <NEmpty description="No file opened" />
+                </div>
+                <template v-else>
+                  <div
+                    v-for="tabPath in vfs.openedTabs"
+                    :key="tabPath"
+                    v-show="tabPath === vfs.activePath"
+                    class="editor-instance"
+                  >
+                    <CodeEditor
+                      :model-value="tabContents[tabPath] ?? ''"
+                      @update:model-value="(value) => updateTabContent(tabPath, value)"
+                    />
+                  </div>
+                </template>
               </NCard>
             </div>
-          </NLayoutContent>
-        </NLayout>
+          </template>
+        </NSplit>
       </template>
 
       <template #2>
@@ -178,10 +270,6 @@ onMounted(async () => {
 <style scoped>
 .ide-shell {
   height: 100vh;
-  background:
-    radial-gradient(circle at 20% 8%, rgba(243, 201, 105, 0.16), transparent 34%),
-    radial-gradient(circle at 84% 10%, rgba(116, 192, 252, 0.12), transparent 28%),
-    linear-gradient(165deg, #0b1220 0%, #0f1928 58%, #101c2d 100%);
 }
 
 .console-panel {
@@ -190,6 +278,22 @@ onMounted(async () => {
 }
 
 .editor-card {
+  height: 100%;
+}
+
+.explorer-pane {
+  height: 100%;
+  
+}
+
+.empty-editor {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editor-instance {
   height: 100%;
 }
 

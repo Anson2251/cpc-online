@@ -51,6 +51,10 @@ export const useVfsStore = defineStore("vfs", () => {
     }
 
     async function saveActiveFile(content: string): Promise<void> {
+        if (!activePath.value) {
+            activeContent.value = content;
+            return;
+        }
         activeContent.value = content;
         await indexedDbVfs.writeTextFile(activePath.value, content);
         await refreshDirectory(currentDirectory.value);
@@ -62,6 +66,15 @@ export const useVfsStore = defineStore("vfs", () => {
         targetDirectory = currentDirectory.value,
     ): Promise<void> {
         const filePath = targetDirectory === "/" ? `/${name}` : `${targetDirectory}/${name}`;
+        const existing = await indexedDbVfs.getEntry(filePath);
+        if (existing) {
+            if (existing.kind === "directory") {
+                throw new Error(`A folder with the same name already exists: ${filePath}`);
+            }
+            await openFile(filePath);
+            return;
+        }
+
         await indexedDbVfs.createTextFile(filePath);
         await refreshDirectory(currentDirectory.value);
         await refreshNodes();
@@ -103,8 +116,14 @@ export const useVfsStore = defineStore("vfs", () => {
 
         openedTabs.value.splice(index, 1);
         if (activePath.value === path) {
-            const fallback =
-                openedTabs.value[index - 1] ?? openedTabs.value[index] ?? "/main.pseudo";
+            const fallback = openedTabs.value[index - 1] ?? openedTabs.value[index];
+            if (!fallback) {
+                activePath.value = "";
+                activeContent.value = "";
+                currentDirectory.value = "/";
+                return;
+            }
+
             const exists = await indexedDbVfs.exists(fallback);
             if (exists) {
                 await openFile(fallback);

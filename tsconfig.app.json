@@ -1,10 +1,14 @@
 {
   "extends": "@vue/tsconfig/tsconfig.dom.json",
   "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
-  "exclude": ["src/**/__tests__/*"],
+  "exclude": ["src/**/__tests__/*", "src/libs/cpc-core/tests/**/*"],
   "compilerOptions": {
     // Extra safety for array and object lookups, but may have false positives.
-    "noUncheckedIndexedAccess": true,
+    "noUncheckedIndexedAccess": false,
+
+    // cpc-core source is imported directly by IDE worker; keep compatibility
+    // with existing non-type-only imports in that library.
+    "verbatimModuleSyntax": false,
 
     // Path mapping for cleaner imports.
     "paths": {

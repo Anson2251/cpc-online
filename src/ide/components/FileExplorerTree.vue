@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Component } from "vue";
+import type { Component, VNodeChild } from "vue";
 
 import {
   Add24Regular,
@@ -44,7 +44,7 @@ const itemMenuY = ref(0);
 const itemTargetPath = ref("/");
 const itemTargetKind = ref<"file" | "directory">("file");
 
-const selectedKeys = computed(() => [vfs.activePath]);
+const selectedKeys = computed(() => (vfs.activePath ? [vfs.activePath] : []));
 
 const isItemDirectoryEmpty = computed(() => {
   if (itemTargetKind.value !== "directory") {
@@ -140,13 +140,30 @@ const treeData = computed<TreeOption[]>(() => {
   return rootChildren;
 });
 
+function expandDirectoryPath(path: string): void {
+  const chunks = path.split("/").filter(Boolean);
+  if (!chunks.length) {
+    return;
+  }
+
+  const nextKeys = new Set(expandedKeys.value);
+  let currentPath = "";
+  for (const chunk of chunks) {
+    currentPath = `${currentPath}/${chunk}`;
+    nextKeys.add(currentPath);
+  }
+
+  expandedKeys.value = Array.from(nextKeys);
+}
+
 function icon(iconComp: unknown) {
   return () => h(NIcon, null, { default: () => h(iconComp as Component) });
 }
 
-function renderTreePrefix({ option }: { option: TreeOption }): Component {
+function renderTreePrefix({ option }: { option: TreeOption }): VNodeChild {
   const rawNode = (option as { rawNode?: { kind?: string } }).rawNode;
-  return rawNode?.kind === "directory" ? Folder24Regular : Document24Regular;
+  const iconComp = rawNode?.kind === "directory" ? Folder24Regular : Document24Regular;
+  return h(NIcon, null, { default: () => h(iconComp) });
 }
 
 async function handleTreeSelect(keys: Array<string | number>): Promise<void> {
@@ -223,11 +240,13 @@ async function handleSurfaceAction(key: string | number): Promise<void> {
   hideMenus();
 
   if (key === "new-file") {
+    const targetDirectory = currentWorkingDirectory();
     const name = window.prompt("New file name", "new-file.pseudo")?.trim();
     if (!name) {
       return;
     }
-    await vfs.createFile(name, currentWorkingDirectory());
+    await vfs.createFile(name, targetDirectory);
+    expandDirectoryPath(targetDirectory);
     emit("fileSelected", vfs.activePath);
     return;
   }
@@ -246,11 +265,13 @@ async function handleItemAction(key: string | number): Promise<void> {
   hideMenus();
 
   if (key === "new-file") {
+    const targetDirectory = currentWorkingDirectory();
     const name = window.prompt("New file name", "new-file.pseudo")?.trim();
     if (!name) {
       return;
     }
-    await vfs.createFile(name, currentWorkingDirectory());
+    await vfs.createFile(name, targetDirectory);
+    expandDirectoryPath(targetDirectory);
     emit("fileSelected", vfs.activePath);
     return;
   }
@@ -272,7 +293,9 @@ async function handleItemAction(key: string | number): Promise<void> {
 
     const fileName = entry.name || "download";
     if (entry.fileKind === "binary") {
-      triggerBrowserDownload(new Blob([entry.binaryContent ?? new Uint8Array()]), fileName);
+      const binaryContent = entry.binaryContent ?? new Uint8Array();
+      const bytes = Uint8Array.from(binaryContent);
+      triggerBrowserDownload(new Blob([bytes]), fileName);
     } else {
       triggerBrowserDownload(
         new Blob([entry.textContent ?? ""], { type: "text/plain;charset=utf-8" }),
@@ -285,13 +308,15 @@ async function handleItemAction(key: string | number): Promise<void> {
   if (key === "export-archive" && itemTargetKind.value === "directory") {
     const path = itemTargetPath.value;
     const blob = await exportDirectoryToZip(indexedDbVfs, path);
-    const folderName = path === "/" ? "workspace" : path.split("/").filter(Boolean).at(-1);
+    const folderParts = path.split("/").filter(Boolean);
+    const folderName = path === "/" ? "workspace" : folderParts[folderParts.length - 1];
     triggerBrowserDownload(blob, `${folderName || "workspace"}.zip`);
     return;
   }
 
   if (key === "rename") {
-    const currentName = itemTargetPath.value.split("/").filter(Boolean).at(-1) ?? "";
+    const currentNameParts = itemTargetPath.value.split("/").filter(Boolean);
+    const currentName = currentNameParts[currentNameParts.length - 1] ?? "";
     const nextName = window.prompt("Rename to", currentName)?.trim();
     if (!nextName || nextName === currentName) {
       return;
@@ -340,6 +365,7 @@ onMounted(async () => {
         <NTree
           block-line
           selectable
+          expand-on-click
           :data="treeData"
           :expanded-keys="expandedKeys"
           :selected-keys="selectedKeys"

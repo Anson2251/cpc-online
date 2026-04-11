@@ -48,7 +48,7 @@ export function getParentPath(path: string): string | null {
 
 export function joinPath(parent: string, name: string): string {
     const parentNormalized = normalizePath(parent);
-    const childName = name.trim().replaceAll("/", "");
+    const childName = name.trim().replace(/\//g, "");
     if (parentNormalized === SEP) {
         return normalizePath(`${SEP}${childName}`);
     }
