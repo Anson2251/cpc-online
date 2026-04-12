@@ -402,6 +402,7 @@ onMounted(async () => {
       title="Workspace"
       :bordered="false"
       content-style="height: 100%; padding: 8px; overflow: auto;"
+      @contextmenu="handleSurfaceContextMenu"
     >
       <template #header-extra>
         <NButton quaternary circle size="small" @click="vfs.refreshNodes">
