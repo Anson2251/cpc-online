@@ -1,64 +1,183 @@
 <script setup lang="ts">
-import { Warning24Regular, Delete24Regular } from "@vicons/fluent";
-import { NButton, NCard, NEmpty, NIcon, NSpace, NTag, NText, NVirtualList } from "naive-ui";
+import { Delete24Regular, Warning24Regular } from "@vicons/fluent";
+import {
+  NButton,
+  NCard,
+  NEmpty,
+  NIcon,
+  NInput,
+  NSpace,
+  NTabPane,
+  NTabs,
+  NTag,
+  NText,
+  NCode,
+  NVirtualList,
+} from "naive-ui";
+import { ref, useTemplateRef, watch } from "vue";
 
 import { useRuntimeStore } from "@/ide/stores/runtime";
 
+import DebugPanel from "./DebugPanel.vue";
+
 const runtime = useRuntimeStore();
+const activeTab = ref<"output" | "debug">("output");
+const inputRef = useTemplateRef("consoleInput");
+const outputListRef = useTemplateRef("outputList");
+
+function scrollOutputToBottom(): void {
+  setTimeout(() => {
+    if (activeTab.value !== "output") {
+    return;
+  }
+
+  const list = outputListRef.value as { scrollTo?: (options: { index: number }) => void } | null;
+  if (!list?.scrollTo || runtime.logs.length === 0) {
+    return;
+  }
+
+  list.scrollTo({ index: runtime.logs.length - 1 });
+  }, 50)
+}
+
+watch(
+  () => runtime.debugPaused,
+  (paused) => {
+    if (paused) {
+      activeTab.value = "debug";
+    }
+  },
+);
+
+watch(
+  () => runtime.awaitingInput,
+  async (awaitingInput) => {
+    if (!awaitingInput) {
+      return;
+    }
+    activeTab.value = "output";
+    await scrollOutputToBottom();
+    inputRef.value?.focus();
+  },
+);
+
+watch(
+  () => runtime.logs.length,
+  async (currentLength, previousLength) => {
+    if (currentLength <= previousLength) {
+      return;
+    }
+    await scrollOutputToBottom();
+  },
+);
 </script>
 
 <template>
   <NCard
     class="output-card"
     size="small"
-    title="Output"
+    title="Console"
     :bordered="false"
-    content-style="padding: 0; height: 100%;"
+    content-style="padding: 0 12px; height: 100%; min-height: 0;"
   >
     <template #header-extra>
       <NSpace align="center">
-        <NTag v-if="runtime.lastRunSuccess === false" type="error" size="small">
+        <NTag v-if="runtime.debugSessionActive" :type="runtime.debugPaused ? 'warning' : 'info'" size="small">
+          {{ runtime.debugPaused ? "Paused" : "Debugging" }}
+        </NTag>
+        <NTag v-else-if="runtime.lastRunSuccess === false" type="error" size="small">
           <template #icon>
             <NIcon><Warning24Regular /></NIcon>
           </template>
           Failed
         </NTag>
-        <NTag v-else-if="runtime.lastRunSuccess === true" type="success" size="small">
-          Passed
-        </NTag>
-        <NButton tertiary size="small" @click="runtime.clearLogs"
-          ><template #icon> <Delete24Regular /></template> Clear</NButton
-        >
+        <NTag v-else-if="runtime.lastRunSuccess === true" type="success" size="small">Passed</NTag>
+        <NButton tertiary size="small" @click="runtime.clearLogs">
+          <template #icon>
+            <Delete24Regular />
+          </template>
+          Clear
+        </NButton>
       </NSpace>
     </template>
 
-    <NEmpty
-      v-if="runtime.logs.length === 0"
-      description="Run your program to see output"
-      style="padding-top: 16px"
-    />
-
-    <NVirtualList v-else :items="runtime.logs" :item-size="24" key-field="id" class="output-list">
-      <template #default="{ item }">
-        <div class="log-row" :class="item.stream">
-          <NText depth="3" class="log-time">{{
-            new Date(item.timestamp).toLocaleTimeString()
-          }}</NText>
-          <code class="log-text">{{ item.text }}</code>
+    <NTabs v-model:value="activeTab" type="line" animated class="console-tabs">
+      <NTabPane name="output" tab="Output">
+        <div v-if="runtime.logs.length === 0 && !runtime.awaitingInput" class="empty-panel">
+          <NEmpty description="Run your program to see output" />
         </div>
-      </template>
-    </NVirtualList>
+
+        <div v-else class="output-console">
+          <div style="display: flex; flex-direction: column; height: 100%; overflow: hidden; padding-bottom: 8px;">
+            <NVirtualList
+              ref="outputList"
+              :items="runtime.logs"
+              :item-size="24"
+              key-field="id"
+              class="output-list"
+            >
+              <template #default="{ item }">
+                <div class="log-row" :class="item.stream">
+                  <NText depth="3" class="log-time">{{ new Date(item.timestamp).toLocaleTimeString() }}</NText>
+                  <NCode class="log-text">{{ item.text }}</NCode>
+                </div>
+              </template>
+            </NVirtualList>
+            <div v-if="runtime.awaitingInput" class="input-row">
+              <NText depth="3" class="input-label">{{ runtime.pendingInputPrompt || "INPUT" }}</NText>
+              <NInput
+                ref="consoleInput"
+                v-model:value="runtime.pendingInputValue"
+                size="small"
+                placeholder="Type input and press Enter"
+                @keyup.enter="runtime.submitInputPrompt"
+              />
+              <NButton size="small" tertiary @click="runtime.cancelInputPrompt">Cancel</NButton>
+              <NButton size="small" type="primary" @click="runtime.submitInputPrompt">Submit</NButton>
+            </div>
+          </div>
+        </div>
+      </NTabPane>
+
+      <NTabPane name="debug" tab="Debug">
+        <DebugPanel :snapshot="runtime.debugSnapshot" />
+      </NTabPane>
+    </NTabs>
   </NCard>
 </template>
 
 <style scoped>
 .output-card {
   height: 100%;
-  padding-bottom: 32px;
+}
+
+.console-tabs {
+  height: 100%;
+}
+
+.console-tabs :deep(.n-tabs-pane-wrapper),
+.console-tabs :deep(.n-tab-pane) {
+  height: 100%;
+}
+
+.output-console,
+.output-list,
+.empty-panel {
+  height: 100%;
+}
+
+.output-console {
+  display: flex;
+  flex-direction: column;
 }
 
 .output-list {
-  height: 100%;
+  flex: 1;
+}
+
+.empty-panel {
+  display: grid;
+  place-items: center;
 }
 
 .log-row {
@@ -81,11 +200,29 @@ const runtime = useRuntimeStore();
   color: #ff9b9b;
 }
 
+.log-row.stdin {
+  color: #9fd3ff;
+}
+
 .log-time {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .log-text {
   white-space: pre-wrap;
+  font-size: 12px;
+}
+
+.input-row {
+  display: grid;
+  grid-template-columns: minmax(120px, auto) 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.input-label {
+  font-size: 12px;
 }
 </style>

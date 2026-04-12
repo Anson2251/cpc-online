@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Component } from "vue";
 
-import { Play24Regular } from "@vicons/fluent";
+import { Bug24Regular, Play24Regular, Stop24Regular } from "@vicons/fluent";
 import {
   NButton,
   NCard,
@@ -34,6 +34,12 @@ const editorRefs = reactive<Record<string, { focusEditor?: () => void } | null>>
 
 const canRun = computed(() => !runtime.running && Boolean(vfs.activePath));
 const hasTabs = computed(() => vfs.openedTabs.length > 0);
+const showDebugControls = computed(() => runtime.debugSessionActive);
+const canDebugCommand = computed(() => runtime.debugSessionActive && runtime.debugPaused);
+const runActionActive = computed(() => runtime.running && !runtime.debugMode);
+const debugActionActive = computed(() => runtime.running && runtime.debugMode);
+const runButtonLabel = computed(() => (runtime.running && !runtime.debugMode ? "Stop" : "Run"));
+const debugButtonLabel = computed(() => (runtime.running && runtime.debugMode ? "Exit" : "Debug"));
 const AUTO_SAVE_DEBOUNCE_MS = 500;
 
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -44,6 +50,11 @@ function icon(iconComp: unknown) {
 }
 
 async function runProgram(): Promise<void> {
+  if (runtime.running && !runtime.debugMode) {
+    runtime.stopActiveRun();
+    return;
+  }
+
   if (!vfs.activePath) {
     message.error("No file selected");
     return;
@@ -57,11 +68,38 @@ async function runProgram(): Promise<void> {
   }
 
   runtime.setActiveFile(vfs.activePath);
-  await runtime.runActiveFile();
+  await runtime.runActiveFile({ debug: false });
   if (runtime.lastRunSuccess) {
     message.success("Execution completed");
   } else {
     message.error(runtime.lastError ?? "Execution failed");
+  }
+}
+
+async function debugProgram(): Promise<void> {
+  if (runtime.running && runtime.debugMode) {
+    runtime.stopActiveRun();
+    return;
+  }
+
+  if (!vfs.activePath) {
+    message.error("No file selected");
+    return;
+  }
+
+  try {
+    await persistActiveFile();
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : "Failed to save file");
+    return;
+  }
+
+  runtime.setActiveFile(vfs.activePath);
+  await runtime.runActiveFile({ debug: true });
+  if (runtime.lastRunSuccess) {
+    message.success("Debug execution completed");
+  } else {
+    message.error(runtime.lastError ?? "Debug execution failed");
   }
 }
 
@@ -145,6 +183,17 @@ function tabLabel(path: string): string {
 
 function isPseudocodeFile(path: string): boolean {
   return path.toLowerCase().endsWith(".pseudo");
+}
+
+function activeDebugLineFor(path: string): number | null {
+  if (path !== vfs.activePath) {
+    return null;
+  }
+  return runtime.debugSnapshot?.location.line ?? null;
+}
+
+function toggleBreakpoint(path: string, line: number): void {
+  runtime.toggleBreakpoint(path, line);
 }
 
 async function handleTabChange(name: string | number): Promise<void> {
@@ -251,15 +300,54 @@ watch(
                   </NSpace>
 
                   <NSpace>
+                    <NTag v-if="showDebugControls" size="small" :type="runtime.debugPaused ? 'warning' : 'info'">
+                      {{ runtime.debugPaused ? "Paused" : "Debugging" }}
+                    </NTag>
+                    <NButton
+                      v-if="showDebugControls"
+                      size="small"
+                      tertiary
+                      :disabled="!canDebugCommand"
+                      @click="runtime.continueDebug"
+                    >
+                      Continue
+                    </NButton>
+                    <NButton
+                      v-if="showDebugControls"
+                      size="small"
+                      tertiary
+                      :disabled="!canDebugCommand"
+                      @click="runtime.stepIntoDebug"
+                    >
+                      Step Into
+                    </NButton>
+                    <NButton
+                      v-if="showDebugControls"
+                      size="small"
+                      tertiary
+                      :disabled="!canDebugCommand"
+                      @click="runtime.stepOverDebug"
+                    >
+                      Step Over
+                    </NButton>
                     <NButton
                       size="small"
-                      type="primary"
-                      :loading="runtime.running"
-                      :disabled="!canRun"
-                      :render-icon="icon(Play24Regular)"
+                      :type="runActionActive ? 'error' : 'primary'"
+                      :disabled="!runActionActive && (!canRun || runtime.awaitingInput)"
+                      :render-icon="icon(runActionActive ? Stop24Regular : Play24Regular)"
                       @click="runProgram"
                     >
-                      Run
+                      {{ runButtonLabel }}
+                    </NButton>
+                    <NButton
+                      size="small"
+                      :type="debugActionActive ? 'error' : undefined"
+                      :secondary="!debugActionActive"
+                      :disabled="!debugActionActive && (!canRun || runtime.awaitingInput)"
+                      :render-icon="icon(debugActionActive ? Stop24Regular : Bug24Regular)"
+                      @click="debugProgram"
+                    >
+                      {{ debugButtonLabel }}
                     </NButton>
                   </NSpace>
                 </NSpace>
@@ -308,8 +396,11 @@ watch(
                   >
                     <CodeEditor
                       :ref="(el) => setEditorRef(tabPath, el)"
+                      :breakpoints="runtime.getBreakpoints(tabPath)"
+                      :active-debug-line="activeDebugLineFor(tabPath)"
                       :enable-pseudocode="isPseudocodeFile(tabPath)"
                       :model-value="tabContents[tabPath] ?? ''"
+                      @toggle-breakpoint="(line) => toggleBreakpoint(tabPath, line)"
                       @update:model-value="(value) => updateTabContent(tabPath, value)"
                     />
                   </div>
@@ -325,6 +416,7 @@ watch(
         </NSplit>
       </template>
     </NSplit>
+
   </NLayout>
 </template>
 

@@ -1,9 +1,24 @@
-import type { ExecutionResult } from "@/libs/cpc-core/src/browser-index";
+import type { DebugSnapshot, ExecutionResult } from "@/libs/cpc-core/src/browser-index";
 
 export interface RuntimeWorkerRunRequest {
     type: "run";
     runId: number;
     filePath: string;
+    debug: boolean;
+    breakpoints?: number[];
+}
+
+export interface RuntimeWorkerDebugCommandRequest {
+    type: "debug-command";
+    runId: number;
+    command: "continue" | "step-into" | "step-over";
+}
+
+export interface RuntimeWorkerInputResponseRequest {
+    type: "input-response";
+    runId: number;
+    requestId: number;
+    value: string;
 }
 
 export interface RuntimeWorkerLogEvent {
@@ -26,8 +41,27 @@ export interface RuntimeWorkerCrashEvent {
     message: string;
 }
 
-export type RuntimeWorkerRequest = RuntimeWorkerRunRequest;
+export interface RuntimeWorkerDebugEvent {
+    type: "debug";
+    runId: number;
+    event: "paused" | "resumed";
+    snapshot: DebugSnapshot;
+}
+
+export interface RuntimeWorkerInputRequestEvent {
+    type: "input-request";
+    runId: number;
+    requestId: number;
+    prompt?: string;
+}
+
+export type RuntimeWorkerRequest =
+    | RuntimeWorkerRunRequest
+    | RuntimeWorkerDebugCommandRequest
+    | RuntimeWorkerInputResponseRequest;
 export type RuntimeWorkerEvent =
     | RuntimeWorkerLogEvent
     | RuntimeWorkerDoneEvent
-    | RuntimeWorkerCrashEvent;
+    | RuntimeWorkerCrashEvent
+    | RuntimeWorkerDebugEvent
+    | RuntimeWorkerInputRequestEvent;

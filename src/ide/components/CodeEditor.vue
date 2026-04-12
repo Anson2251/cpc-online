@@ -8,10 +8,12 @@ import {
 } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { bracketMatching } from "@codemirror/language";
-import { EditorState, type Extension, RangeSetBuilder } from "@codemirror/state";
+import { Compartment, EditorSelection, EditorState, RangeSetBuilder, type Extension } from "@codemirror/state";
 import {
   Decoration,
   EditorView,
+  GutterMarker,
+  gutter,
   keymap,
   lineNumbers,
   type DecorationSet,
@@ -164,14 +166,83 @@ const editorThemeVars = computed(() => ({
 const props = defineProps<{
   modelValue: string;
   enablePseudocode?: boolean;
+  breakpoints?: number[];
+  activeDebugLine?: number | null;
 }>();
 
 const emit = defineEmits<{
   "update:modelValue": [value: string];
+  "toggle-breakpoint": [line: number];
 }>();
 
 const host = ref<HTMLDivElement | null>(null);
 let view: EditorView | null = null;
+const pseudocodeCompartment = new Compartment();
+const breakpointCompartment = new Compartment();
+const debugLineCompartment = new Compartment();
+
+class BreakpointMarker extends GutterMarker {
+  toDOM(): HTMLElement {
+    const marker = document.createElement("span");
+    marker.className = "cm-pc-breakpoint-dot";
+    return marker;
+  }
+}
+
+const breakpointMarker = new BreakpointMarker();
+
+function createPseudocodeExtension(): Extension {
+  return props.enablePseudocode
+    ? [pseudocodeHighlighting, autocompletion({ override: [keywordCompletionSource] })]
+    : [];
+}
+
+function createBreakpointExtension(): Extension {
+  return gutter({
+    class: "cm-pc-breakpoint-gutter",
+    lineMarker: (_view, line) => {
+      const lineNumber = _view.state.doc.lineAt(line.from).number;
+      return props.breakpoints?.includes(lineNumber) ? breakpointMarker : null;
+    },
+    initialSpacer: () => breakpointMarker,
+    domEventHandlers: {
+      mousedown: (_view, line, event) => {
+        event.preventDefault();
+        emit("toggle-breakpoint", _view.state.doc.lineAt(line.from).number);
+        return true;
+      },
+    },
+  });
+}
+
+function createDebugLineExtension(): Extension {
+  if (!props.activeDebugLine || props.activeDebugLine < 1) {
+    return [];
+  }
+
+  return ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet;
+
+      constructor(view: EditorView) {
+        const line = props.activeDebugLine;
+        if (!line || line > view.state.doc.lines) {
+          this.decorations = Decoration.none;
+          return;
+        }
+
+        this.decorations = Decoration.set([
+          Decoration.line({ class: "cm-pc-active-debug-line" }).range(
+            view.state.doc.line(line).from,
+          ),
+        ]);
+      }
+    },
+    {
+      decorations: (instance) => instance.decorations,
+    },
+  );
+}
 
 function focusEditor(): void {
   view?.focus();
@@ -182,17 +253,15 @@ defineExpose({
 });
 
 function createEditorState(content: string): EditorState {
-  const pseudocodeExtensions: Extension[] = props.enablePseudocode
-    ? [pseudocodeHighlighting, autocompletion({ override: [keywordCompletionSource] })]
-    : [];
-
   return EditorState.create({
     doc: content,
     extensions: [
       lineNumbers(),
+      breakpointCompartment.of(createBreakpointExtension()),
       history(),
       bracketMatching(),
-      ...pseudocodeExtensions,
+      pseudocodeCompartment.of(createPseudocodeExtension()),
+      debugLineCompartment.of(createDebugLineExtension()),
       keymap.of([...defaultKeymap, ...historyKeymap, ...completionKeymap]),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
@@ -244,6 +313,53 @@ watch(
     });
   },
 );
+
+watch(
+  () => props.enablePseudocode,
+  () => {
+    if (!view) {
+      return;
+    }
+    view.dispatch({
+      effects: pseudocodeCompartment.reconfigure(createPseudocodeExtension()),
+    });
+  },
+);
+
+watch(
+  () => (props.breakpoints ?? []).join(","),
+  () => {
+    if (!view) {
+      return;
+    }
+    view.dispatch({
+      effects: breakpointCompartment.reconfigure(createBreakpointExtension()),
+    });
+  },
+);
+
+watch(
+  () => props.activeDebugLine,
+  (line) => {
+    if (!view) {
+      return;
+    }
+
+    view.dispatch({
+      effects: debugLineCompartment.reconfigure(createDebugLineExtension()),
+    });
+
+    if (!line || line < 1 || line > view.state.doc.lines) {
+      return;
+    }
+
+    const targetLine = view.state.doc.line(line);
+    view.dispatch({
+      selection: EditorSelection.cursor(targetLine.from),
+      scrollIntoView: true,
+    });
+  },
+);
 </script>
 
 <template>
@@ -277,6 +393,22 @@ watch(
   background: var(--cm-gutter-bg);
   color: var(--cm-gutter-fg);
   border-right: 1px solid var(--cm-border);
+}
+
+.code-editor-host :deep(.cm-pc-breakpoint-gutter) {
+  width: 16px;
+}
+
+.code-editor-host :deep(.cm-pc-breakpoint-dot) {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--cm-builtin);
+}
+
+.code-editor-host :deep(.cm-pc-active-debug-line) {
+  background: color-mix(in srgb, var(--cm-selection) 18%, transparent);
 }
 
 .code-editor-host :deep(.cm-activeLine) {

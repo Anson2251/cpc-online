@@ -6,7 +6,8 @@ import {
   ArrowClockwise24Regular,
   Archive24Regular,
   Delete24Regular,
-  Document24Regular,
+  Document16Filled,
+  Folder16Filled,
   Folder24Regular,
   Rename24Regular,
   ArrowDownload24Filled,
@@ -192,7 +193,7 @@ function icon(iconComp: unknown) {
 
 function renderTreePrefix({ option }: { option: TreeOption }): VNodeChild {
   const rawNode = (option as { rawNode?: { kind?: string } }).rawNode;
-  const iconComp = rawNode?.kind === "directory" ? Folder24Regular : Document24Regular;
+  const iconComp = rawNode?.kind === "directory" ? Folder16Filled : Document16Filled;
   return h(NIcon, null, { default: () => h(iconComp) });
 }
 
@@ -400,7 +401,7 @@ onMounted(async () => {
       size="small"
       title="Workspace"
       :bordered="false"
-      content-style="height: 100%; padding: 8px;"
+      content-style="height: 100%; padding: 8px; overflow: auto;"
     >
       <template #header-extra>
         <NButton quaternary circle size="small" @click="vfs.refreshNodes">
@@ -410,12 +411,7 @@ onMounted(async () => {
         </NButton>
       </template>
 
-      <NScrollbar
-        class="explorer-scroll"
-        content-style="min-height: 100%;"
-        @contextmenu="handleSurfaceContextMenu"
-      >
-        <NTree
+      <NTree
           block-line
           selectable
           expand-on-click
@@ -427,7 +423,6 @@ onMounted(async () => {
           @update:expanded-keys="setExpanded"
           @update:selected-keys="handleTreeSelect"
         />
-      </NScrollbar>
     </NCard>
 
     <NDropdown
