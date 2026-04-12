@@ -22,10 +22,12 @@ import {
 import { useThemeVars } from "naive-ui";
 import { onBeforeUnmount, onMounted, ref, watch, computed } from "vue";
 
-import { KEYWORD_TOKENS, TokenType } from "@/libs/cpc-core/src/lexer/tokens";
+import { KEYWORD_TOKENS, OPERATOR_TOKENS, TokenType } from "@/libs/cpc-core/src/lexer/tokens";
 import builtInFunctions from "@/libs/cpc-core/src/runtime/builtin-functions";
 
 const KEYWORDS = Object.keys(KEYWORD_TOKENS).sort();
+const OPERATOR_WORDS = Object.keys(OPERATOR_TOKENS).filter((token) => /^[A-Z]+$/.test(token));
+const OPERATOR_SYMBOLS = Object.keys(OPERATOR_TOKENS).filter((token) => !/^[A-Z]+$/.test(token));
 const TYPE_LOOKUP = new Set<string>([
   TokenType.INTEGER,
   TokenType.REAL,
@@ -37,8 +39,12 @@ const TYPE_LOOKUP = new Set<string>([
 const BOOLEAN_LOOKUP = new Set<string>([TokenType.TRUE, TokenType.FALSE]);
 const BUILTIN_LOOKUP = new Set<string>(Object.keys(builtInFunctions));
 const KEYWORD_LOOKUP = new Set(
-  KEYWORDS.filter((keyword) => !TYPE_LOOKUP.has(keyword) && !BOOLEAN_LOOKUP.has(keyword)),
+  KEYWORDS.filter(
+    (keyword) => !TYPE_LOOKUP.has(keyword) && !BOOLEAN_LOOKUP.has(keyword) && !OPERATOR_WORDS.includes(keyword),
+  ),
 );
+const OPERATOR_WORD_LOOKUP = new Set<string>(OPERATOR_WORDS);
+const OPERATOR_SYMBOL_LOOKUP = new Set<string>(OPERATOR_SYMBOLS);
 
 const keywordCompletions: Completion[] = [
   ...KEYWORDS.map((label) => {
@@ -50,6 +56,7 @@ const keywordCompletions: Completion[] = [
     }
     return { label, type: "keyword" as const };
   }),
+  ...OPERATOR_WORDS.map((label) => ({ label, type: "keyword" as const })),
   ...Object.keys(builtInFunctions)
     .sort()
     .map((label) => ({ label, type: "function" as const })),
@@ -64,8 +71,7 @@ function keywordCompletionSource(context: CompletionContext): CompletionResult |
     return null;
   }
 
-  const upper = word.text.toUpperCase();
-  const options = keywordCompletions.filter((item) => item.label.startsWith(upper));
+  const options = keywordCompletions.filter((item) => item.label.startsWith(word.text));
   return {
     from: word.from,
     options,
@@ -77,6 +83,7 @@ const keywordMark = Decoration.mark({ class: "cm-pc-keyword" });
 const typeMark = Decoration.mark({ class: "cm-pc-type" });
 const booleanMark = Decoration.mark({ class: "cm-pc-boolean" });
 const builtinMark = Decoration.mark({ class: "cm-pc-builtin" });
+const operatorMark = Decoration.mark({ class: "cm-pc-operator" });
 const commentMark = Decoration.mark({ class: "cm-pc-comment" });
 const stringMark = Decoration.mark({ class: "cm-pc-string" });
 
@@ -85,7 +92,7 @@ function buildDecorations(view: EditorView): DecorationSet {
 
   for (const { from, to } of view.visibleRanges) {
     const text = view.state.doc.sliceString(from, to);
-    const tokenRegex = /\/\/.*$|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\b[A-Za-z_][A-Za-z0-9_]*\b/gm;
+    const tokenRegex = /\/\/.*$|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|<-|<=|>=|<>|[=<>+\-*/&]|\b[A-Za-z_][A-Za-z0-9_]*\b/gm;
     let match: RegExpExecArray | null;
     while ((match = tokenRegex.exec(text)) !== null) {
       const start = from + match.index;
@@ -101,14 +108,15 @@ function buildDecorations(view: EditorView): DecorationSet {
         continue;
       }
 
-      const upper = token.toUpperCase();
-      if (TYPE_LOOKUP.has(upper)) {
+      if (TYPE_LOOKUP.has(token)) {
         builder.add(start, end, typeMark);
-      } else if (BOOLEAN_LOOKUP.has(upper)) {
+      } else if (BOOLEAN_LOOKUP.has(token)) {
         builder.add(start, end, booleanMark);
-      } else if (BUILTIN_LOOKUP.has(upper)) {
+      } else if (BUILTIN_LOOKUP.has(token)) {
         builder.add(start, end, builtinMark);
-      } else if (KEYWORD_LOOKUP.has(upper)) {
+      } else if (OPERATOR_SYMBOL_LOOKUP.has(token) || OPERATOR_WORD_LOOKUP.has(token)) {
+        builder.add(start, end, operatorMark);
+      } else if (KEYWORD_LOOKUP.has(token)) {
         builder.add(start, end, keywordMark);
       }
     }
@@ -151,6 +159,7 @@ const editorThemeVars = computed(() => ({
   "--cm-border": theme.value.dividerColor,
   "--cm-font": theme.value.fontFamilyMono,
   "--cm-keyword": theme.value.primaryColor,
+  "--cm-operator": theme.value.warningColor,
   "--cm-type": theme.value.successColor,
   "--cm-boolean": theme.value.warningColor,
   "--cm-comment": theme.value.textColor3,
@@ -442,6 +451,11 @@ watch(
 
 .code-editor-host :deep(.cm-pc-keyword) {
   color: var(--cm-keyword);
+  font-weight: 600;
+}
+
+.code-editor-host :deep(.cm-pc-operator) {
+  color: var(--cm-operator);
   font-weight: 600;
 }
 
