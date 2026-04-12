@@ -4,15 +4,14 @@ import {
   NCollapseItem,
   NDataTable,
   NEmpty,
-  NRadio,
-  NRadioGroup,
+  NTabPane,
   NTable,
-  NThing,
+  NTabs,
   NTree,
   type DataTableColumns,
   type TreeOption,
 } from "naive-ui";
-import { computed, h } from "vue";
+import { computed, h, ref } from "vue";
 
 import type {
   ArrayTypeInfo,
@@ -157,17 +156,18 @@ function formatSetValue(value: unknown): string {
 
 const callStack = computed<DebugFrame[]>(() => props.snapshot?.callStack ?? []);
 const scopes = computed<DebugScope[]>(() => props.snapshot?.scopes ?? []);
+const activeTab = ref<"stack" | "variables">("variables");
 
 const variableColumns: DataTableColumns<VariableRow> = [
   {
     title: "Name",
     key: "name",
-    width: 180,
+    width: 120,
   },
   {
     title: "Type",
     key: "typeLabel",
-    width: 220,
+    width: 170,
   },
   {
     title: "Value",
@@ -183,17 +183,7 @@ const variableColumns: DataTableColumns<VariableRow> = [
       }
 
       if (isEnumType(variable.typeInfo)) {
-        const enumType = variable.typeInfo;
-        return h(
-          NRadioGroup,
-          { value: typeof variable.value === "string" ? variable.value : null },
-          {
-            default: () =>
-              enumType.values.map((option: string) =>
-                h(NRadio, { key: option, value: option, disabled: true }, { default: () => option }),
-              ),
-          },
-        );
+        return h("code", formatPrimitive(variable.value));
       }
 
       if (isArrayType(variable.typeInfo)) {
@@ -203,32 +193,60 @@ const variableColumns: DataTableColumns<VariableRow> = [
           slot: `${variable.name}${entry.slot}`,
         }));
         return h(
-          NTable,
-          { size: "small", bordered: false, singleLine: false },
+          NCollapse,
+          { class: "value-collapse", displayDirective: "show" },
           {
-            default: () => [
-              h("thead", [h("tr", [h("th", "Slot"), h("th", "Value")])]),
+            default: () =>
               h(
-                "tbody",
-                rows.length > 0
-                  ? rows.map((entry) =>
-                      h("tr", { key: entry.key }, [h("td", entry.slot), h("td", [h("code", entry.value)])]),
-                    )
-                  : [h("tr", [h("td", { colspan: 2 }, "No slots")])],
+                NCollapseItem,
+                { title: `ARRAY (${rows.length} slots)`, name: "details" },
+                {
+                  default: () =>
+                    h(
+                      NTable,
+                      { size: "small", bordered: false, singleLine: false },
+                      {
+                        default: () => [
+                          h("thead", [h("tr", [h("th", "Slot"), h("th", "Value")])]),
+                          h(
+                            "tbody",
+                            rows.length > 0
+                              ? rows.map((entry) =>
+                                  h("tr", { key: entry.key }, [h("td", entry.slot), h("td", [h("code", entry.value)])]),
+                                )
+                              : [h("tr", [h("td", { colspan: 2 }, "No slots")])],
+                          ),
+                        ],
+                      },
+                    ),
+                },
               ),
-            ],
           },
         );
       }
 
       if (isRecordType(variable.typeInfo)) {
         const nodes = createRecordTree(variable.value);
-        return h(NTree, {
-          blockLine: true,
-          data: nodes,
-          expandOnClick: true,
-          defaultExpandedKeys: nodes.map((node) => node.key as string),
-        });
+        return h(
+          NCollapse,
+          { class: "value-collapse", displayDirective: "show" },
+          {
+            default: () =>
+              h(
+                NCollapseItem,
+                { title: `RECORD (${nodes.length} fields)`, name: "details" },
+                {
+                  default: () =>
+                    h(NTree, {
+                      blockLine: true,
+                      data: nodes,
+                      expandOnClick: true,
+                      defaultExpandedKeys: nodes.map((node) => node.key as string),
+                    }),
+                },
+              ),
+          },
+        );
       }
 
       return h("code", formatPrimitive(variable.value));
@@ -252,43 +270,54 @@ function rowsForScope(scope: DebugScope): VariableRow[] {
   </div>
 
   <div v-else class="debug-panel">
-    <NThing title="Location" class="debug-section">
-      <div class="debug-meta">
-        Line {{ snapshot.location.line ?? "-" }}, Column {{ snapshot.location.column ?? "-" }}
-      </div>
-      <div class="debug-meta">Reason: {{ snapshot.reason }}</div>
-    </NThing>
+    <div class="location-bar">
+      <strong>{{ snapshot.reason.toLocaleUpperCase() }}</strong>
+      <span class="location-separator">|</span>
+      <code>Line {{ snapshot.location.line ?? "-" }}, Col {{ snapshot.location.column ?? "-" }}</code>
+    </div>
 
-    <NThing title="Call Stack" class="debug-section">
-      <div v-if="callStack.length === 0" class="debug-empty">No stack frames</div>
-      <div v-for="(frame, index) in callStack" :key="`${frame.routineName}-${index}`" class="debug-row">
-        <strong>{{ frame.routineName }}</strong>
-        <span>line {{ frame.line ?? "-" }}, col {{ frame.column ?? "-" }}</span>
-      </div>
-    </NThing>
+    <NTabs v-model:value="activeTab" type="line" placement="left" size="small" class="debug-tabs">
+      <NTabPane name="stack" tab="Call Stack">
+        <div v-if="callStack.length === 0" class="debug-empty">No stack frames</div>
+        <NTable v-else size="small" :bordered="false" :single-line="false" class="stack-table">
+          <thead>
+            <tr>
+              <th>Routine</th>
+              <th>Loc</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(frame, index) in callStack" :key="`${frame.routineName}-${index}`">
+              <td>{{ frame.routineName }}</td>
+              <td><code>{{ frame.line ?? "-" }}:{{ frame.column ?? "-" }}</code></td>
+            </tr>
+          </tbody>
+        </NTable>
+      </NTabPane>
 
-    <NThing title="Variables" class="debug-section">
-      <NCollapse>
-        <NCollapseItem v-for="scope in scopes" :key="scope.scopeName" :title="scope.scopeName" :name="scope.scopeName">
-          <div v-if="scope.variables.length === 0" class="debug-empty">No variables</div>
-          <NDataTable
-            v-else
-            size="small"
-            :columns="variableColumns"
-            :data="rowsForScope(scope)"
-            :bordered="false"
-            :single-line="false"
-          />
-        </NCollapseItem>
-      </NCollapse>
-    </NThing>
+      <NTabPane name="variables" tab="Variables" style="overflow: auto;">
+        <NCollapse display-directive="show">
+          <NCollapseItem v-for="scope in scopes" :key="scope.scopeName" :title="scope.scopeName" :name="scope.scopeName">
+            <div v-if="scope.variables.length === 0" class="debug-empty">No variables</div>
+            <NDataTable
+              v-else
+              :size="('tiny' as any)"
+              :columns="variableColumns"
+              :data="rowsForScope(scope)"
+              :bordered="false"
+              :single-line="false"
+            />
+          </NCollapseItem>
+        </NCollapse>
+      </NTabPane>
+    </NTabs>
   </div>
 </template>
 
 <style scoped>
 .debug-panel,
 .empty-panel {
-  height: calc(100% - 32px);
+  height: calc(100% - 16px);
 }
 
 .empty-panel {
@@ -297,24 +326,66 @@ function rowsForScope(scope: DebugScope): VariableRow[] {
 }
 
 .debug-panel {
-  overflow: auto;
-  padding: 12px;
-}
-
-.debug-section + .debug-section {
-  margin-top: 16px;
-}
-
-.debug-row {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
 }
 
-.debug-meta,
+.location-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.82);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+
+.location-separator {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.debug-tabs {
+  flex: 1;
+  min-height: 0;
+}
+
+.debug-tabs :deep(.n-tabs-pane-wrapper) {
+  overflow: auto;
+}
+
+.debug-tabs :deep(.n-tab-pane) {
+  padding-top: 2px;
+}
+
+.debug-tabs :deep(.n-tabs-tab) {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.value-collapse :deep(.n-collapse-item__header) {
+  min-height: 22px;
+  padding-top: 0;
+  padding-bottom: 2px;
+}
+
+.value-collapse :deep(.n-collapse-item__content-wrapper) {
+  margin-top: 2px;
+}
+
+.stack-table :deep(th),
+.stack-table :deep(td) {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
 .debug-empty {
   color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
 }
 </style>

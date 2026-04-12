@@ -76,10 +76,16 @@ watch(
   <NCard
     class="output-card"
     size="small"
-    title="Console"
     :bordered="false"
     content-style="padding: 0 12px; height: 100%; min-height: 0;"
   >
+    <template #header>
+      <NTabs v-model:value="activeTab" type="segment" size="small" class="panel-tabs">
+        <NTabPane name="output" tab="Output" />
+        <NTabPane name="debug" tab="Debug" />
+      </NTabs>
+    </template>
+
     <template #header-extra>
       <NSpace align="center">
         <NTag v-if="runtime.debugSessionActive" :type="runtime.debugPaused ? 'warning' : 'info'" size="small">
@@ -101,48 +107,46 @@ watch(
       </NSpace>
     </template>
 
-    <NTabs v-model:value="activeTab" type="line" animated class="console-tabs">
-      <NTabPane name="output" tab="Output">
-        <div v-if="runtime.logs.length === 0 && !runtime.awaitingInput" class="empty-panel">
-          <NEmpty description="Run your program to see output" />
-        </div>
+    <div v-if="activeTab === 'output'" class="panel-body">
+      <div v-if="runtime.logs.length === 0 && !runtime.awaitingInput" class="empty-panel">
+        <NEmpty description="Run your program to see output" />
+      </div>
 
-        <div v-else class="output-console">
-          <div style="display: flex; flex-direction: column; height: 100%; overflow: hidden; padding-bottom: 8px;">
-            <NVirtualList
-              ref="outputList"
-              :items="runtime.logs"
-              :item-size="24"
-              key-field="id"
-              class="output-list"
-            >
-              <template #default="{ item }">
-                <div class="log-row" :class="item.stream">
-                  <NText depth="3" class="log-time">{{ new Date(item.timestamp).toLocaleTimeString() }}</NText>
-                  <NCode class="log-text">{{ item.text }}</NCode>
-                </div>
-              </template>
-            </NVirtualList>
-            <div v-if="runtime.awaitingInput" class="input-row">
-              <NText depth="3" class="input-label">{{ runtime.pendingInputPrompt || "INPUT" }}</NText>
-              <NInput
-                ref="consoleInput"
-                v-model:value="runtime.pendingInputValue"
-                size="small"
-                placeholder="Type input and press Enter"
-                @keyup.enter="runtime.submitInputPrompt"
-              />
-              <NButton size="small" tertiary @click="runtime.cancelInputPrompt">Cancel</NButton>
-              <NButton size="small" type="primary" @click="runtime.submitInputPrompt">Submit</NButton>
-            </div>
+      <div v-else class="output-console">
+        <div style="display: flex; flex-direction: column; height: 100%; overflow: hidden; padding-bottom: 8px;">
+          <NVirtualList
+            ref="outputList"
+            :items="runtime.logs"
+            :item-size="24"
+            key-field="id"
+            class="output-list"
+          >
+            <template #default="{ item }">
+              <div class="log-row" :class="item.stream">
+                <NText depth="3" class="log-time">{{ new Date(item.timestamp).toLocaleTimeString() }}</NText>
+                <NCode class="log-text">{{ item.text }}</NCode>
+              </div>
+            </template>
+          </NVirtualList>
+          <div v-if="runtime.awaitingInput" class="input-row">
+            <NText depth="3" class="input-label">{{ runtime.pendingInputPrompt || "INPUT" }}</NText>
+            <NInput
+              ref="consoleInput"
+              v-model:value="runtime.pendingInputValue"
+              size="small"
+              placeholder="Type input and press Enter"
+              @keyup.enter="runtime.submitInputPrompt"
+            />
+            <NButton size="small" tertiary @click="runtime.cancelInputPrompt">Cancel</NButton>
+            <NButton size="small" type="primary" @click="runtime.submitInputPrompt">Submit</NButton>
           </div>
         </div>
-      </NTabPane>
+      </div>
+    </div>
 
-      <NTabPane name="debug" tab="Debug">
-        <DebugPanel :snapshot="runtime.debugSnapshot" />
-      </NTabPane>
-    </NTabs>
+    <div v-else class="panel-body">
+      <DebugPanel :snapshot="runtime.debugSnapshot" />
+    </div>
   </NCard>
 </template>
 
@@ -151,12 +155,16 @@ watch(
   height: 100%;
 }
 
-.console-tabs {
-  height: 100%;
+.panel-tabs {
+  width: fit-content;
+  max-width: 140px;
 }
 
-.console-tabs :deep(.n-tabs-pane-wrapper),
-.console-tabs :deep(.n-tab-pane) {
+.panel-tabs :deep(.n-tabs-nav) {
+  width: 192px;
+}
+
+.panel-body {
   height: 100%;
 }
 
