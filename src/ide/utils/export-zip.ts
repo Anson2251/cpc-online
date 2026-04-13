@@ -36,6 +36,11 @@ export async function exportDirectoryToZip(
             continue;
         }
 
+        if (file.kind === "directory") {
+            zip.folder(target);
+            continue;
+        }
+
         if (file.fileKind === "binary") {
             zip.file(target, file.binaryContent ?? new Uint8Array());
         } else {

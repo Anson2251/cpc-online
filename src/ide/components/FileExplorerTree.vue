@@ -17,7 +17,6 @@ import {
   NCard,
   NDropdown,
   NIcon,
-  NScrollbar,
   NTree,
   type DropdownOption,
   type TreeOption,
@@ -68,11 +67,15 @@ const isItemDirectoryEmpty = computed(() => {
   }
 
   const directoryPath = itemTargetPath.value;
-  const prefix = directoryPath === "/" ? "/" : `${directoryPath}/`;
-  return !vfs.nodes.some((node) => node.kind === "file" && node.path.startsWith(prefix));
+  if (directoryPath === "/") {
+    return !vfs.nodes.some((node) => node.path !== "/");
+  }
+
+  const prefix = `${directoryPath}/`;
+  return !vfs.nodes.some((node) => node.path.startsWith(prefix));
 });
 
-const isWorkspaceEmpty = computed(() => !vfs.nodes.some((node) => node.kind === "file"));
+const isWorkspaceEmpty = computed(() => !vfs.nodes.some((node) => node.path !== "/"));
 
 const baseCreateMenuOptions: DropdownOption[] = [
   { label: "New File", key: "new-file", icon: icon(Add24Regular) },

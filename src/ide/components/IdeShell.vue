@@ -1,10 +1,19 @@
 <script setup lang="ts">
 import type { Component } from "vue";
 
-import { Bug24Regular, Play24Regular, Stop24Regular } from "@vicons/fluent";
+import {
+  Box16Regular,
+  Bug24Regular,
+  Desktop16Regular,
+  Play24Regular,
+  Stop24Regular,
+  WeatherMoon16Regular,
+  WeatherSunny16Regular,
+} from "@vicons/fluent";
 import {
   NButton,
   NCard,
+  NDropdown,
   NEmpty,
   NIcon,
   NLayout,
@@ -14,21 +23,12 @@ import {
   NTabPane,
   NTag,
   NTabs,
+  type DropdownOption,
   NTooltip,
+  useThemeVars,
   useMessage,
 } from "naive-ui";
-import {
-  computed,
-  defineComponent,
-  h,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  reactive,
-  watch,
-} from "vue";
-
-import { Box24Regular } from "@vicons/fluent";
+import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, watch } from "vue";
 
 import { useRuntimeStore } from "@/ide/stores/runtime";
 import { useVfsStore } from "@/ide/stores/vfs";
@@ -37,9 +37,20 @@ import CodeEditor from "./CodeEditor.vue";
 import FileExplorerTree from "./FileExplorerTree.vue";
 import OutputLogPanel from "./OutputLogPanel.vue";
 
+type ThemeMode = "light" | "dark" | "system";
+
+const props = defineProps<{
+  themeMode: ThemeMode;
+}>();
+
+const emit = defineEmits<{
+  "update:theme-mode": [value: ThemeMode];
+}>();
+
 const vfs = useVfsStore();
 const runtime = useRuntimeStore();
 const message = useMessage();
+const theme = useThemeVars();
 const tabContents = reactive<Record<string, string>>({});
 const tabDirty = reactive<Record<string, boolean>>({});
 const editorRefs = reactive<Record<string, { focusEditor?: () => void } | null>>({});
@@ -77,6 +88,48 @@ const GithubIcon = defineComponent({
       );
   },
 });
+
+const themeDropdownOptions: DropdownOption[] = [
+  { label: "Light", key: "light", icon: icon(WeatherSunny16Regular) },
+  { label: "Dark", key: "dark", icon: icon(WeatherMoon16Regular) },
+  { label: "System", key: "system", icon: icon(Desktop16Regular) },
+];
+
+const themeModeLabel = computed(() => {
+  if (props.themeMode === "light") {
+    return "Light";
+  }
+  if (props.themeMode === "dark") {
+    return "Dark";
+  }
+  return "System";
+});
+
+const themeModeIcon = computed(() => {
+  if (props.themeMode === "light") {
+    return WeatherSunny16Regular;
+  }
+  if (props.themeMode === "dark") {
+    return WeatherMoon16Regular;
+  }
+  return Desktop16Regular;
+});
+
+const brandDockStyle = computed(() => ({
+  background: theme.value.cardColor,
+  border: `1px solid ${theme.value.borderColor}`,
+  boxShadow: theme.value.boxShadow1,
+}));
+
+const brandTitleStyle = computed(() => ({
+  color: theme.value.textColor2,
+}));
+
+function handleThemeModeSelect(key: string | number): void {
+  if (key === "light" || key === "dark" || key === "system") {
+    emit("update:theme-mode", key);
+  }
+}
 
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let suppressAutoSave = false;
@@ -457,8 +510,23 @@ watch(
       </template>
     </NSplit>
 
-    <div class="ide-brand-dock" tabindex="0" aria-label="Repository links">
-      <span class="ide-brand-title">CPC-ONLINE</span>
+    <div class="ide-brand-dock" tabindex="0" aria-label="Repository links" :style="brandDockStyle">
+      <NDropdown trigger="click" :options="themeDropdownOptions" @select="handleThemeModeSelect">
+        <NTooltip>
+          <template #trigger>
+            <NButton circle quaternary size="small" :title="`Theme: ${themeModeLabel}`">
+              <template #icon>
+                <NIcon>
+                  <component :is="themeModeIcon" />
+                </NIcon>
+              </template>
+            </NButton>
+          </template>
+          Theme: {{ themeModeLabel }}
+        </NTooltip>
+      </NDropdown>
+
+      <span class="ide-brand-title" :style="brandTitleStyle">CPC-ONLINE</span>
       <div class="ide-brand-links">
         <a
           :href="mainRepoUrl"
@@ -490,7 +558,7 @@ watch(
               <NButton circle quaternary size="small" title="cpc-core GitHub">
                 <template #icon>
                   <NIcon>
-                    <Box24Regular />
+                    <Box16Regular />
                   </NIcon>
                 </template>
               </NButton>
@@ -542,18 +610,14 @@ watch(
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  padding-left: 16px;
+  padding-left: 8px;
   border-radius: 10px;
-  background: rgb(0 0 0 / 28%);
-  border: 1px solid rgb(255 255 255 / 12%);
-  backdrop-filter: blur(4px);
 }
 
 .ide-brand-title {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: rgb(255 255 255 / 82%);
 }
 
 .ide-brand-links {

@@ -335,6 +335,10 @@ export class IndexedDbVfs {
             throw new Error("Cannot move root directory");
         }
 
+        if (target === source || target.startsWith(`${source}/`)) {
+            throw new Error("Cannot move a path into itself");
+        }
+
         const db = await this.getDb();
         const sourceEntry = await db.get(STORE_NAME, source);
         if (!sourceEntry) {
@@ -389,7 +393,7 @@ export class IndexedDbVfs {
         return Boolean(entry);
     }
 
-    async exportDirectoryEntries(rootPath: string): Promise<VfsFileEntry[]> {
+    async exportDirectoryEntries(rootPath: string): Promise<VfsEntry[]> {
         const normalized = normalizePath(rootPath);
         const db = await this.getDb();
         const root = await db.get(STORE_NAME, normalized);
@@ -398,11 +402,12 @@ export class IndexedDbVfs {
         }
 
         const all = await db.getAll(STORE_NAME);
-        return all.filter(
-            (entry): entry is VfsFileEntry =>
-                entry.kind === "file" &&
-                (entry.parentPath === normalized || entry.path.startsWith(`${normalized}/`)),
-        );
+        if (normalized === ROOT_PATH) {
+            return all.filter((entry) => entry.path !== ROOT_PATH);
+        }
+
+        const prefix = `${normalized}/`;
+        return all.filter((entry) => entry.path.startsWith(prefix));
     }
 }
 
