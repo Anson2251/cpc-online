@@ -8,6 +8,7 @@ import {
   NTable,
   NTabs,
   NTree,
+  NButton,
   type DataTableColumns,
   type TreeOption,
 } from "naive-ui";
@@ -35,6 +36,19 @@ type VariableRow = {
   name: string;
   typeLabel: string;
   variable: DebugVariable;
+};
+
+type DisplayScope = {
+  key: string;
+  title: string;
+  scope: DebugScope;
+};
+
+type StackFrameRow = {
+  depth: number;
+  key: string;
+  frame: DebugFrame;
+  scopeKey: string;
 };
 
 function isPrimitiveType(typeInfo: TypeInfo): boolean {
@@ -157,6 +171,42 @@ function formatSetValue(value: unknown): string {
 const callStack = computed<DebugFrame[]>(() => props.snapshot?.callStack ?? []);
 const scopes = computed<DebugScope[]>(() => props.snapshot?.scopes ?? []);
 const activeTab = ref<"stack" | "variables">("variables");
+const expandedScopeNames = ref<string[]>([]);
+
+const displayScopes = computed<DisplayScope[]>(() => {
+  const frames = callStack.value;
+  return scopes.value.map((scope, index) => {
+    const frame = frames[frames.length - 1 - index];
+    let title = scope.scopeName;
+
+    if (frame) {
+      title = index === 0 ? `${frame.routineName} (current)` : `${frame.routineName} (caller ${index})`;
+    } else if (scope.scopeName === "global") {
+      title = "Global";
+    }
+
+    return {
+      key: `scope-${index}`,
+      title,
+      scope,
+    };
+  });
+});
+
+const stackFrames = computed<StackFrameRow[]>(() => {
+  const frames = callStack.value
+    .map((frame, index) => ({
+      key: `${frame.routineName}-${index}`,
+      frame,
+      scopeKey: `scope-${callStack.value.length - 1 - index}`,
+    }))
+    .reverse();
+
+  return frames.map((frame, index) => ({
+    ...frame,
+    depth: index + 1,
+  }));
+});
 
 const variableColumns: DataTableColumns<VariableRow> = [
   {
@@ -254,13 +304,18 @@ const variableColumns: DataTableColumns<VariableRow> = [
   },
 ];
 
-function rowsForScope(scope: DebugScope): VariableRow[] {
-  return scope.variables.map((variable) => ({
-    key: `${scope.scopeName}-${variable.name}`,
+function rowsForScope(scope: DisplayScope): VariableRow[] {
+  return scope.scope.variables.map((variable) => ({
+    key: `${scope.key}-${variable.name}`,
     name: variable.name,
     typeLabel: formatType(variable.typeInfo),
     variable,
   }));
+}
+
+function focusScope(scopeKey: string): void {
+  activeTab.value = "variables";
+  expandedScopeNames.value = [scopeKey];
 }
 </script>
 
@@ -282,23 +337,32 @@ function rowsForScope(scope: DebugScope): VariableRow[] {
         <NTable v-else size="small" :bordered="false" :single-line="false" class="stack-table">
           <thead>
             <tr>
+              <th>Depth</th>
               <th>Routine</th>
               <th>Loc</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(frame, index) in callStack" :key="`${frame.routineName}-${index}`">
-              <td>{{ frame.routineName }}</td>
-              <td><code>{{ frame.line ?? "-" }}:{{ frame.column ?? "-" }}</code></td>
+            <tr
+              v-for="stackFrame in stackFrames"
+              :key="stackFrame.key"
+              class="stack-row"
+            >
+              <td><code>{{ stackFrame.depth }}</code></td>
+              <td>
+                {{ stackFrame.frame.routineName }}
+                <n-button @click="focusScope(stackFrame.scopeKey)" tertiary type="info" size="tiny" style="float: right;">Variables</n-button>
+              </td>
+              <td><code>{{ stackFrame.frame.line ?? "-" }}:{{ stackFrame.frame.column ?? "-" }}</code></td>
             </tr>
           </tbody>
         </NTable>
       </NTabPane>
 
       <NTabPane name="variables" tab="Variables" style="overflow: auto;">
-        <NCollapse display-directive="show">
-          <NCollapseItem v-for="scope in scopes" :key="scope.scopeName" :title="scope.scopeName" :name="scope.scopeName">
-            <div v-if="scope.variables.length === 0" class="debug-empty">No variables</div>
+        <NCollapse v-model:expanded-names="expandedScopeNames" display-directive="show">
+          <NCollapseItem v-for="scope in displayScopes" :key="scope.key" :title="scope.title" :name="scope.key">
+            <div v-if="scope.scope.variables.length === 0" class="debug-empty">No variables</div>
             <NDataTable
               v-else
               :size="('tiny' as any)"
@@ -382,6 +446,10 @@ function rowsForScope(scope: DebugScope): VariableRow[] {
 .stack-table :deep(td) {
   padding-top: 4px;
   padding-bottom: 4px;
+}
+
+.stack-row:hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .debug-empty {
