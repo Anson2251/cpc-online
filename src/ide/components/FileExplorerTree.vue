@@ -18,6 +18,8 @@ import {
   NDropdown,
   NIcon,
   NTree,
+  NTooltip,
+  NPerformantEllipsis,
   type DropdownOption,
   type TreeOption,
 } from "naive-ui";
@@ -197,7 +199,18 @@ function icon(iconComp: unknown) {
 function renderTreePrefix({ option }: { option: TreeOption }): VNodeChild {
   const rawNode = (option as { rawNode?: { kind?: string } }).rawNode;
   const iconComp = rawNode?.kind === "directory" ? Folder16Filled : Document16Filled;
-  return h(NIcon, null, { default: () => h(iconComp) });
+  return h(NIcon, { style: "opacity: 0.8" }, { default: () => h(iconComp) });
+}
+
+function renderTreeLabel({ option }: { option: TreeOption }): VNodeChild {
+  const label = String(option.label ?? "");
+  return h(
+    NPerformantEllipsis,
+    {
+      style: "display: block;",
+    },
+    { default: () => label },
+  );
 }
 
 async function handleTreeSelect(keys: Array<string | number>): Promise<void> {
@@ -408,11 +421,16 @@ onMounted(async () => {
       @contextmenu="handleSurfaceContextMenu"
     >
       <template #header-extra>
-        <NButton quaternary circle size="small" @click="vfs.refreshNodes">
-          <template #icon>
-            <NIcon><ArrowClockwise24Regular /></NIcon>
+        <NTooltip>
+          <template #trigger>
+            <NButton quaternary circle size="small" @click="vfs.refreshNodes">
+              <template #icon>
+                <NIcon><ArrowClockwise24Regular /></NIcon>
+              </template>
+            </NButton>
           </template>
-        </NButton>
+          Refresh
+        </NTooltip>
       </template>
 
       <NTree
@@ -424,6 +442,7 @@ onMounted(async () => {
         :selected-keys="selectedKeys"
         :node-props="treeNodeProps"
         :render-prefix="renderTreePrefix"
+        :render-label="renderTreeLabel"
         @update:expanded-keys="setExpanded"
         @update:selected-keys="handleTreeSelect"
       />
@@ -460,6 +479,10 @@ onMounted(async () => {
 
 .explorer-card {
   height: 100%;
+}
+
+.explorer-card:deep(.n-tree-node-content__text) {
+  max-width: calc(100% - 24px);
 }
 
 :deep(.n-card__content) {

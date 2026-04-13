@@ -3,10 +3,7 @@ import type { Component } from "vue";
 
 import {
   Box16Regular,
-  Bug24Regular,
   Desktop16Regular,
-  Play24Regular,
-  Stop24Regular,
   WeatherMoon16Regular,
   WeatherSunny16Regular,
 } from "@vicons/fluent";
@@ -21,6 +18,7 @@ import {
   NLayout,
   NLayoutFooter,
   NModal,
+  NPerformantEllipsis,
   NSpace,
   NSplit,
   NTabPane,
@@ -51,6 +49,7 @@ import { useVfsStore } from "@/ide/stores/vfs";
 
 import CodeEditor from "./CodeEditor.vue";
 import FileExplorerTree from "./FileExplorerTree.vue";
+import IdeTitlePane from "./IdeTitlePane.vue";
 import OutputLogPanel from "./OutputLogPanel.vue";
 
 type ThemeMode = "light" | "dark" | "system";
@@ -400,81 +399,25 @@ watch(
         <NSplit direction="vertical" :default-size="0.75" :min="0.2" :max="0.9">
           <template #1>
             <div style="display: flex; flex-direction: column; height: 100%">
-              <NCard
-                size="small"
-                :bordered="false"
-                content-style="padding: 8px 12px;"
-                v-if="hasTabs"
-              >
-                <NSpace justify="space-between" align="center">
-                  <NSpace>
-                    <NTag type="info" size="small">{{ vfs.activeFileName }}</NTag>
-                    <NTag
-                      v-if="vfs.activePath && isPseudocodeFile(vfs.activePath)"
-                      size="small"
-                      type="warning"
-                    >
-                      CAIE PseudoCode
-                    </NTag>
-                  </NSpace>
-
-                  <NSpace>
-                    <NTag
-                      v-if="showDebugControls"
-                      size="small"
-                      :type="runtime.debugPaused ? 'warning' : 'info'"
-                    >
-                      {{ runtime.debugPaused ? "Paused" : "Debugging" }}
-                    </NTag>
-                    <NButton
-                      v-if="showDebugControls"
-                      size="small"
-                      tertiary
-                      :disabled="!canDebugCommand"
-                      @click="runtime.continueDebug"
-                    >
-                      Continue
-                    </NButton>
-                    <NButton
-                      v-if="showDebugControls"
-                      size="small"
-                      tertiary
-                      :disabled="!canDebugCommand"
-                      @click="runtime.stepIntoDebug"
-                    >
-                      Step Into
-                    </NButton>
-                    <NButton
-                      v-if="showDebugControls"
-                      size="small"
-                      tertiary
-                      :disabled="!canDebugCommand"
-                      @click="runtime.stepOverDebug"
-                    >
-                      Step Over
-                    </NButton>
-                    <NButton
-                      size="small"
-                      :type="runActionActive ? 'error' : 'primary'"
-                      :disabled="!runActionActive && (!canRun || runtime.awaitingInput)"
-                      :render-icon="icon(runActionActive ? Stop24Regular : Play24Regular)"
-                      @click="runProgram"
-                    >
-                      {{ runButtonLabel }}
-                    </NButton>
-                    <NButton
-                      size="small"
-                      :type="debugActionActive ? 'error' : undefined"
-                      :secondary="!debugActionActive"
-                      :disabled="!debugActionActive && (!canRun || runtime.awaitingInput)"
-                      :render-icon="icon(debugActionActive ? Stop24Regular : Bug24Regular)"
-                      @click="debugProgram"
-                    >
-                      {{ debugButtonLabel }}
-                    </NButton>
-                  </NSpace>
-                </NSpace>
-              </NCard>
+              <IdeTitlePane
+                :has-tabs="hasTabs"
+                :active-file-name="vfs.activeFileName"
+                :active-path="vfs.activePath"
+                :show-debug-controls="showDebugControls"
+                :can-debug-command="canDebugCommand"
+                :debug-paused="runtime.debugPaused"
+                :run-action-active="runActionActive"
+                :debug-action-active="debugActionActive"
+                :can-run="canRun"
+                :awaiting-input="runtime.awaitingInput"
+                :run-button-label="runButtonLabel"
+                :debug-button-label="debugButtonLabel"
+                @continue-debug="runtime.continueDebug"
+                @step-into-debug="runtime.stepIntoDebug"
+                @step-over-debug="runtime.stepOverDebug"
+                @run-program="runProgram"
+                @debug-program="debugProgram"
+              />
 
               <NCard
                 v-if="hasTabs"
@@ -487,16 +430,19 @@ watch(
                   :value="vfs.activePath"
                   type="card"
                   closable
-                  tab-style="min-width: 120px;"
+                  tab-style="min-width: 120px; max-width: 220px;"
                   @update:value="handleTabChange"
                   @close="handleCloseTab"
                 >
-                  <NTabPane
-                    v-for="tabPath in vfs.openedTabs"
-                    :key="tabPath"
-                    :tab="tabLabel(tabPath)"
-                    :name="tabPath"
-                  />
+                  <NTabPane v-for="tabPath in vfs.openedTabs" :key="tabPath" :name="tabPath">
+                    <template #tab>
+                      <div style="max-width: 140px">
+                        <NPerformantEllipsis>
+                          {{ tabLabel(tabPath) }}
+                        </NPerformantEllipsis>
+                      </div>
+                    </template>
+                  </NTabPane>
                 </NTabs>
               </NCard>
 
@@ -541,20 +487,22 @@ watch(
     </NSplit>
 
     <div class="ide-brand-dock" tabindex="0" aria-label="Repository links" :style="brandDockStyle">
-      <NDropdown trigger="click" :options="themeDropdownOptions" @select="handleThemeModeSelect">
-        <NTooltip>
-          <template #trigger>
-            <NButton circle quaternary size="small" :title="`Theme: ${themeModeLabel}`">
-              <template #icon>
-                <NIcon>
-                  <component :is="themeModeIcon" />
-                </NIcon>
-              </template>
-            </NButton>
-          </template>
-          Theme: {{ themeModeLabel }}
-        </NTooltip>
-      </NDropdown>
+      <div class="ide-brand-links">
+        <NDropdown trigger="click" :options="themeDropdownOptions" @select="handleThemeModeSelect">
+          <NTooltip>
+            <template #trigger>
+              <NButton circle quaternary size="small" :title="`Theme: ${themeModeLabel}`">
+                <template #icon>
+                  <NIcon>
+                    <component :is="themeModeIcon" />
+                  </NIcon>
+                </template>
+              </NButton>
+            </template>
+            Theme: {{ themeModeLabel }}
+          </NTooltip>
+        </NDropdown>
+      </div>
 
       <NButton quaternary size="small" aria-label="About CPC-ONLINE" @click="openAboutDialog">
         <span class="ide-brand-title">CPC-ONLINE</span>

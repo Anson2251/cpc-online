@@ -11,10 +11,15 @@ import {
   NTabs,
   NTag,
   NText,
-  NCode,
+  useThemeVars,
   NVirtualList,
 } from "naive-ui";
-import { ref, useTemplateRef, watch } from "vue";
+import { ref, useTemplateRef, watch, computed } from "vue";
+
+const theme = useThemeVars();
+const stdinColor = computed(() => theme.value.infoColor);
+const stdoutColor = computed(() => theme.value.textColor2);
+const stderrColor = computed(() => theme.value.errorColor);
 
 import { useRuntimeStore } from "@/ide/stores/runtime";
 
@@ -89,19 +94,21 @@ watch(
     <template #header-extra>
       <NSpace align="center">
         <NTag
-          v-if="runtime.debugSessionActive"
-          :type="runtime.debugPaused ? 'warning' : 'info'"
+          v-if="runtime.lastRunSuccess === false && runtime.debugSessionActive === false"
+          type="error"
           size="small"
         >
-          {{ runtime.debugPaused ? "Paused" : "Debugging" }}
-        </NTag>
-        <NTag v-else-if="runtime.lastRunSuccess === false" type="error" size="small">
           <template #icon>
             <NIcon><Warning24Regular /></NIcon>
           </template>
           Failed
         </NTag>
-        <NTag v-else-if="runtime.lastRunSuccess === true" type="success" size="small">Passed</NTag>
+        <NTag
+          v-else-if="runtime.lastRunSuccess === true && runtime.debugSessionActive === false"
+          type="success"
+          size="small"
+          >Passed</NTag
+        >
         <NButton tertiary size="small" @click="runtime.clearLogs">
           <template #icon>
             <Delete24Regular />
@@ -138,7 +145,7 @@ watch(
                 <NText depth="3" class="log-time">{{
                   new Date(item.timestamp).toLocaleTimeString()
                 }}</NText>
-                <NCode class="log-text">{{ item.text }}</NCode>
+                <code class="log-text">{{ item.text }}</code>
               </div>
             </template>
           </NVirtualList>
@@ -215,15 +222,15 @@ watch(
 }
 
 .log-row.stdout {
-  color: #c9d6ea;
+  color: v-bind("stdoutColor");
 }
 
 .log-row.stderr {
-  color: #ff9b9b;
+  color: v-bind("stderrColor");
 }
 
 .log-row.stdin {
-  color: #9fd3ff;
+  color: v-bind("stdinColor");
 }
 
 .log-time {
