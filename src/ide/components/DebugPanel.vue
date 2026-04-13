@@ -8,6 +8,7 @@ import {
   NTable,
   NTabs,
   NTree,
+  NCard,
   NButton,
   type DataTableColumns,
   type TreeOption,
@@ -331,13 +332,13 @@ function focusScope(scopeKey: string): void {
   </div>
 
   <div v-else class="debug-panel">
-    <div class="location-bar">
+    <NCard size="small" bordered content-style="padding: 4px 12px;">
       <strong>{{ snapshot.reason.toLocaleUpperCase() }}</strong>
       <span class="location-separator">|</span>
       <code
         >Line {{ snapshot.location.line ?? "-" }}, Col {{ snapshot.location.column ?? "-" }}</code
       >
-    </div>
+    </NCard>
 
     <NTabs v-model:value="activeTab" type="line" placement="left" size="small" class="debug-tabs">
       <NTabPane name="stack" tab="Call Stack">
@@ -413,7 +414,6 @@ function focusScope(scopeKey: string): void {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 8px;
 }
 
 .location-bar {
@@ -423,7 +423,6 @@ function focusScope(scopeKey: string): void {
   padding: 4px 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 6px;
-  color: rgba(255, 255, 255, 0.82);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -431,7 +430,8 @@ function focusScope(scopeKey: string): void {
 }
 
 .location-separator {
-  color: rgba(255, 255, 255, 0.38);
+  opacity: 0.6;
+  padding: 0 8px;
 }
 
 .debug-tabs {

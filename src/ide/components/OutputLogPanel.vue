@@ -83,6 +83,7 @@ watch(
     size="small"
     :bordered="false"
     content-style="padding: 0 12px; height: 100%; min-height: 0;"
+    header-style="padding-bottom: 4px;"
   >
     <template #header>
       <NTabs v-model:value="activeTab" size="small" class="panel-tabs">
