@@ -8,7 +8,13 @@ import {
 } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { bracketMatching } from "@codemirror/language";
-import { Compartment, EditorSelection, EditorState, RangeSetBuilder, type Extension } from "@codemirror/state";
+import {
+  Compartment,
+  EditorSelection,
+  EditorState,
+  RangeSetBuilder,
+  type Extension,
+} from "@codemirror/state";
 import {
   Decoration,
   EditorView,
@@ -40,7 +46,10 @@ const BOOLEAN_LOOKUP = new Set<string>([TokenType.TRUE, TokenType.FALSE]);
 const BUILTIN_LOOKUP = new Set<string>(Object.keys(builtInFunctions));
 const KEYWORD_LOOKUP = new Set(
   KEYWORDS.filter(
-    (keyword) => !TYPE_LOOKUP.has(keyword) && !BOOLEAN_LOOKUP.has(keyword) && !OPERATOR_WORDS.includes(keyword),
+    (keyword) =>
+      !TYPE_LOOKUP.has(keyword) &&
+      !BOOLEAN_LOOKUP.has(keyword) &&
+      !OPERATOR_WORDS.includes(keyword),
   ),
 );
 const OPERATOR_WORD_LOOKUP = new Set<string>(OPERATOR_WORDS);
@@ -92,7 +101,8 @@ function buildDecorations(view: EditorView): DecorationSet {
 
   for (const { from, to } of view.visibleRanges) {
     const text = view.state.doc.sliceString(from, to);
-    const tokenRegex = /\/\/.*$|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|<-|<=|>=|<>|[=<>+\-*/&]|\b[A-Za-z_][A-Za-z0-9_]*\b/gm;
+    const tokenRegex =
+      /\/\/.*$|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|<-|<=|>=|<>|[=<>+\-*/&]|\b[A-Za-z_][A-Za-z0-9_]*\b/gm;
     let match: RegExpExecArray | null;
     while ((match = tokenRegex.exec(text)) !== null) {
       const start = from + match.index;

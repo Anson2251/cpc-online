@@ -28,16 +28,16 @@ const outputListRef = useTemplateRef("outputList");
 function scrollOutputToBottom(): void {
   setTimeout(() => {
     if (activeTab.value !== "output") {
-    return;
-  }
+      return;
+    }
 
-  const list = outputListRef.value as { scrollTo?: (options: { index: number }) => void } | null;
-  if (!list?.scrollTo || runtime.logs.length === 0) {
-    return;
-  }
+    const list = outputListRef.value as { scrollTo?: (options: { index: number }) => void } | null;
+    if (!list?.scrollTo || runtime.logs.length === 0) {
+      return;
+    }
 
-  list.scrollTo({ index: runtime.logs.length - 1 });
-  }, 50)
+    list.scrollTo({ index: runtime.logs.length - 1 });
+  }, 50);
 }
 
 watch(
@@ -88,7 +88,11 @@ watch(
 
     <template #header-extra>
       <NSpace align="center">
-        <NTag v-if="runtime.debugSessionActive" :type="runtime.debugPaused ? 'warning' : 'info'" size="small">
+        <NTag
+          v-if="runtime.debugSessionActive"
+          :type="runtime.debugPaused ? 'warning' : 'info'"
+          size="small"
+        >
           {{ runtime.debugPaused ? "Paused" : "Debugging" }}
         </NTag>
         <NTag v-else-if="runtime.lastRunSuccess === false" type="error" size="small">
@@ -113,7 +117,15 @@ watch(
       </div>
 
       <div v-else class="output-console">
-        <div style="display: flex; flex-direction: column; height: 100%; overflow: hidden; padding-bottom: 8px;">
+        <div
+          style="
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+            padding-bottom: 8px;
+          "
+        >
           <NVirtualList
             ref="outputList"
             :items="runtime.logs"
@@ -123,7 +135,9 @@ watch(
           >
             <template #default="{ item }">
               <div class="log-row" :class="item.stream">
-                <NText depth="3" class="log-time">{{ new Date(item.timestamp).toLocaleTimeString() }}</NText>
+                <NText depth="3" class="log-time">{{
+                  new Date(item.timestamp).toLocaleTimeString()
+                }}</NText>
                 <NCode class="log-text">{{ item.text }}</NCode>
               </div>
             </template>

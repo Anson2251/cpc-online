@@ -86,7 +86,9 @@ function formatType(typeInfo: TypeInfo): string {
     return typeInfo;
   }
   if (isArrayType(typeInfo)) {
-    const bounds = typeInfo.bounds.map((bound: ArrayTypeInfo["bounds"][number]) => `${bound.lower}:${bound.upper}`).join(", ");
+    const bounds = typeInfo.bounds
+      .map((bound: ArrayTypeInfo["bounds"][number]) => `${bound.lower}:${bound.upper}`)
+      .join(", ");
     return `ARRAY[${bounds}] OF ${formatType(typeInfo.elementType)}`;
   }
   if (isRecordType(typeInfo)) {
@@ -180,7 +182,8 @@ const displayScopes = computed<DisplayScope[]>(() => {
     let title = scope.scopeName;
 
     if (frame) {
-      title = index === 0 ? `${frame.routineName} (current)` : `${frame.routineName} (caller ${index})`;
+      title =
+        index === 0 ? `${frame.routineName} (current)` : `${frame.routineName} (caller ${index})`;
     } else if (scope.scopeName === "global") {
       title = "Global";
     }
@@ -262,7 +265,10 @@ const variableColumns: DataTableColumns<VariableRow> = [
                             "tbody",
                             rows.length > 0
                               ? rows.map((entry) =>
-                                  h("tr", { key: entry.key }, [h("td", entry.slot), h("td", [h("code", entry.value)])]),
+                                  h("tr", { key: entry.key }, [
+                                    h("td", entry.slot),
+                                    h("td", [h("code", entry.value)]),
+                                  ]),
                                 )
                               : [h("tr", [h("td", { colspan: 2 }, "No slots")])],
                           ),
@@ -328,7 +334,9 @@ function focusScope(scopeKey: string): void {
     <div class="location-bar">
       <strong>{{ snapshot.reason.toLocaleUpperCase() }}</strong>
       <span class="location-separator">|</span>
-      <code>Line {{ snapshot.location.line ?? "-" }}, Col {{ snapshot.location.column ?? "-" }}</code>
+      <code
+        >Line {{ snapshot.location.line ?? "-" }}, Col {{ snapshot.location.column ?? "-" }}</code
+      >
     </div>
 
     <NTabs v-model:value="activeTab" type="line" placement="left" size="small" class="debug-tabs">
@@ -343,29 +351,41 @@ function focusScope(scopeKey: string): void {
             </tr>
           </thead>
           <tbody>
-            <tr
-              v-for="stackFrame in stackFrames"
-              :key="stackFrame.key"
-              class="stack-row"
-            >
-              <td><code>{{ stackFrame.depth }}</code></td>
+            <tr v-for="stackFrame in stackFrames" :key="stackFrame.key" class="stack-row">
+              <td>
+                <code>{{ stackFrame.depth }}</code>
+              </td>
               <td>
                 {{ stackFrame.frame.routineName }}
-                <n-button @click="focusScope(stackFrame.scopeKey)" tertiary type="info" size="tiny" style="float: right;">Variables</n-button>
+                <n-button
+                  @click="focusScope(stackFrame.scopeKey)"
+                  tertiary
+                  type="info"
+                  size="tiny"
+                  style="float: right"
+                  >Variables</n-button
+                >
               </td>
-              <td><code>{{ stackFrame.frame.line ?? "-" }}:{{ stackFrame.frame.column ?? "-" }}</code></td>
+              <td>
+                <code>{{ stackFrame.frame.line ?? "-" }}:{{ stackFrame.frame.column ?? "-" }}</code>
+              </td>
             </tr>
           </tbody>
         </NTable>
       </NTabPane>
 
-      <NTabPane name="variables" tab="Variables" style="overflow: auto;">
+      <NTabPane name="variables" tab="Variables" style="overflow: auto">
         <NCollapse v-model:expanded-names="expandedScopeNames" display-directive="show">
-          <NCollapseItem v-for="scope in displayScopes" :key="scope.key" :title="scope.title" :name="scope.key">
+          <NCollapseItem
+            v-for="scope in displayScopes"
+            :key="scope.key"
+            :title="scope.title"
+            :name="scope.key"
+          >
             <div v-if="scope.scope.variables.length === 0" class="debug-empty">No variables</div>
             <NDataTable
               v-else
-              :size="('tiny' as any)"
+              :size="'tiny' as any"
               :columns="variableColumns"
               :data="rowsForScope(scope)"
               :bordered="false"

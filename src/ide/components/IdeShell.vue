@@ -14,9 +14,21 @@ import {
   NTabPane,
   NTag,
   NTabs,
+  NTooltip,
   useMessage,
 } from "naive-ui";
-import { computed, h, nextTick, onBeforeUnmount, onMounted, reactive, watch } from "vue";
+import {
+  computed,
+  defineComponent,
+  h,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  watch,
+} from "vue";
+
+import { Box24Regular } from "@vicons/fluent";
 
 import { useRuntimeStore } from "@/ide/stores/runtime";
 import { useVfsStore } from "@/ide/stores/vfs";
@@ -41,6 +53,30 @@ const debugActionActive = computed(() => runtime.running && runtime.debugMode);
 const runButtonLabel = computed(() => (runtime.running && !runtime.debugMode ? "Stop" : "Run"));
 const debugButtonLabel = computed(() => (runtime.running && runtime.debugMode ? "Exit" : "Debug"));
 const AUTO_SAVE_DEBOUNCE_MS = 500;
+const mainRepoUrl = "https://github.com/Anson2251/cpc-online";
+const coreRepoUrl = "https://github.com/Anson2251/vibe-cpc";
+
+const GithubIcon = defineComponent({
+  name: "GithubIcon",
+  setup() {
+    return () =>
+      h(
+        "svg",
+        {
+          viewBox: "0 0 24 24",
+          fill: "currentColor",
+          width: "1em",
+          height: "1em",
+          "aria-hidden": "true",
+        },
+        [
+          h("path", {
+            d: "M12 .5A12 12 0 0 0 8.2 23.9c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.5-1.4-1.3-1.7-1.3-1.7-1.1-.8.1-.8.1-.8 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.4-1.3-5.4-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.6 11.6 0 0 1 6 0C17.4 5 18.4 5.3 18.4 5.3c.7 1.6.3 2.8.2 3.1.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.5.4.8 1.1.8 2.3v3.4c0 .3.2.7.8.6A12 12 0 0 0 12 .5",
+          }),
+        ],
+      );
+  },
+});
 
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let suppressAutoSave = false;
@@ -300,7 +336,11 @@ watch(
                   </NSpace>
 
                   <NSpace>
-                    <NTag v-if="showDebugControls" size="small" :type="runtime.debugPaused ? 'warning' : 'info'">
+                    <NTag
+                      v-if="showDebugControls"
+                      size="small"
+                      :type="runtime.debugPaused ? 'warning' : 'info'"
+                    >
                       {{ runtime.debugPaused ? "Paused" : "Debugging" }}
                     </NTag>
                     <NButton
@@ -417,12 +457,56 @@ watch(
       </template>
     </NSplit>
 
+    <div class="ide-brand-dock" tabindex="0" aria-label="Repository links">
+      <span class="ide-brand-title">CPC-ONLINE</span>
+      <div class="ide-brand-links">
+        <a
+          :href="mainRepoUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open CPC-ONLINE repository"
+        >
+          <NTooltip>
+            <template #trigger>
+              <NButton circle quaternary size="small" title="CPC-ONLINE GitHub">
+                <template #icon>
+                  <NIcon>
+                    <GithubIcon />
+                  </NIcon>
+                </template>
+              </NButton>
+            </template>
+            CPC Online
+          </NTooltip>
+        </a>
+        <a
+          :href="coreRepoUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open cpc-core repository"
+        >
+          <NTooltip>
+            <template #trigger>
+              <NButton circle quaternary size="small" title="cpc-core GitHub">
+                <template #icon>
+                  <NIcon>
+                    <Box24Regular />
+                  </NIcon>
+                </template>
+              </NButton>
+            </template>
+            Vibe CPC
+          </NTooltip>
+        </a>
+      </div>
+    </div>
   </NLayout>
 </template>
 
 <style scoped>
 .ide-shell {
   height: 100vh;
+  position: relative;
 }
 
 .console-panel {
@@ -447,5 +531,60 @@ watch(
 
 .editor-instance {
   height: 100%;
+}
+
+.ide-brand-dock {
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  padding-left: 16px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 28%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  backdrop-filter: blur(4px);
+}
+
+.ide-brand-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgb(255 255 255 / 82%);
+}
+
+.ide-brand-links {
+  display: inline-flex;
+  gap: 6px;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  transform: translateX(-4px);
+  pointer-events: none;
+  transition:
+    max-width 180ms ease,
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.ide-brand-dock:hover .ide-brand-links,
+.ide-brand-dock:focus-within .ide-brand-links,
+.ide-brand-dock:focus-visible .ide-brand-links {
+  max-width: 80px;
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .ide-brand-links {
+    max-width: 80px;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
 }
 </style>

@@ -413,17 +413,17 @@ onMounted(async () => {
       </template>
 
       <NTree
-          block-line
-          selectable
-          expand-on-click
-          :data="treeData"
-          :expanded-keys="expandedKeys"
-          :selected-keys="selectedKeys"
-          :node-props="treeNodeProps"
-          :render-prefix="renderTreePrefix"
-          @update:expanded-keys="setExpanded"
-          @update:selected-keys="handleTreeSelect"
-        />
+        block-line
+        selectable
+        expand-on-click
+        :data="treeData"
+        :expanded-keys="expandedKeys"
+        :selected-keys="selectedKeys"
+        :node-props="treeNodeProps"
+        :render-prefix="renderTreePrefix"
+        @update:expanded-keys="setExpanded"
+        @update:selected-keys="handleTreeSelect"
+      />
     </NCard>
 
     <NDropdown

@@ -1,9 +1,9 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 
-import type { DebugSnapshot } from "@/libs/cpc-core/src/browser-index";
 import type { RuntimeLogEntry } from "@/ide/runtime/types";
 import type { RuntimeWorkerEvent, RuntimeWorkerRequest } from "@/ide/runtime/worker-messages";
+import type { DebugSnapshot } from "@/libs/cpc-core/src/browser-index";
 
 const BREAKPOINTS_STORAGE_KEY = "cpc-online.breakpoints";
 
@@ -162,7 +162,7 @@ export const useRuntimeStore = defineStore("runtime", () => {
                         success: payload.result.success,
                         error: payload.result.success
                             ? null
-                            : payload.result.error?.message ?? "Execution failed",
+                            : (payload.result.error?.message ?? "Execution failed"),
                     });
                     return;
                 }
@@ -262,8 +262,8 @@ export const useRuntimeStore = defineStore("runtime", () => {
         breakpointsByFile.value = {
             ...breakpointsByFile.value,
             [filePath]: lines
-            .filter((line) => Number.isInteger(line) && line > 0)
-            .sort((a, b) => a - b),
+                .filter((line) => Number.isInteger(line) && line > 0)
+                .sort((a, b) => a - b),
         };
         persistBreakpoints(breakpointsByFile.value);
     }

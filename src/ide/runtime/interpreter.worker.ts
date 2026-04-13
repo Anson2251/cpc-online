@@ -24,11 +24,7 @@ function serializeDebugValue(value: unknown, seen: WeakSet<object> = new WeakSet
         return value;
     }
 
-    if (
-        typeof value === "string" ||
-        typeof value === "number" ||
-        typeof value === "boolean"
-    ) {
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
         return value;
     }
 
@@ -46,7 +42,10 @@ function serializeDebugValue(value: unknown, seen: WeakSet<object> = new WeakSet
 
     if (value instanceof Map) {
         return Object.fromEntries(
-            Array.from(value.entries(), ([key, item]) => [String(key), serializeDebugValue(item, seen)]),
+            Array.from(value.entries(), ([key, item]) => [
+                String(key),
+                serializeDebugValue(item, seen),
+            ]),
         );
     }
 
@@ -107,7 +106,10 @@ function serializeDebugType(typeInfo: TypeInfo): TypeInfo {
         return {
             name: typeInfo.name,
             fields: Object.fromEntries(
-                Object.entries(typeInfo.fields).map(([key, value]) => [key, serializeDebugType(value)]),
+                Object.entries(typeInfo.fields).map(([key, value]) => [
+                    key,
+                    serializeDebugType(value),
+                ]),
             ),
         };
     }
