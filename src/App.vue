@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { darkTheme, lightTheme, NConfigProvider, NMessageProvider } from "naive-ui";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { themeOverridesDark, themeOverridesLight } from "./ide/utils/theme";
 
 import IdeShell from "@/ide/components/IdeShell.vue";
 
@@ -19,6 +20,16 @@ const appliedTheme = computed(() => {
     return lightTheme;
   }
   return prefersDark.value ? darkTheme : lightTheme;
+});
+
+const appliedOverride = computed(() => {
+  if (themeMode.value === "dark") {
+    return themeOverridesDark;
+  }
+  if (themeMode.value === "light") {
+    return themeOverridesLight;
+  }
+  return prefersDark.value ? themeOverridesDark : themeOverridesLight;
 });
 
 function loadThemeMode(): void {
@@ -48,16 +59,11 @@ function setThemeMode(next: ThemeMode): void {
   window.localStorage.setItem(THEME_STORAGE_KEY, next);
 }
 
-const themeOverrides = {
-  common: {
-    fontFamily: "ZSFT-go, Inter Variable, sans-serif",
-    fontFamilyMono: "ZSFT-443, JetBrains Mono, Cascadia Mono, Fira Code, monospace",
-  },
-};
+
 </script>
 
 <template>
-  <NConfigProvider :theme="appliedTheme" :theme-overrides="themeOverrides">
+  <NConfigProvider :theme="appliedTheme" :theme-overrides="appliedOverride">
     <NMessageProvider>
       <IdeShell :theme-mode="themeMode" @update:theme-mode="setThemeMode" />
     </NMessageProvider>
