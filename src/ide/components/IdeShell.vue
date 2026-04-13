@@ -334,7 +334,7 @@ async function handleCloseTab(name: string | number): Promise<void> {
   if (vfs.activePath && tabContents[vfs.activePath] === undefined) {
     tabContents[vfs.activePath] = vfs.activeContent;
   }
-  runtime.setActiveFile(vfs.activePath || "/main.pseudo");
+  runtime.setActiveFile(vfs.activePath);
   await focusActiveEditor();
 }
 
@@ -346,7 +346,7 @@ onMounted(async () => {
     tabDirty[vfs.activePath] = false;
   }
   suppressAutoSave = false;
-  runtime.setActiveFile(vfs.activePath || "/main.pseudo");
+  runtime.setActiveFile(vfs.activePath);
   await focusActiveEditor();
 });
 

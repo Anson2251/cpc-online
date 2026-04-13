@@ -8,12 +8,12 @@ import { getParentPath } from "@/ide/vfs/path";
 
 export const useVfsStore = defineStore("vfs", () => {
     const initialized = ref(false);
-    const activePath = ref("/main.pseudo");
+    const activePath = ref("");
     const activeContent = ref("");
     const currentDirectory = ref("/");
     const directoryEntries = ref<VfsListItem[]>([]);
     const nodes = ref<VfsNodeInfo[]>([]);
-    const openedTabs = ref<string[]>(["/main.pseudo"]);
+    const openedTabs = ref<string[]>([]);
 
     const activeFileName = computed(() => {
         const chunks = activePath.value.split("/").filter(Boolean);
@@ -28,7 +28,6 @@ export const useVfsStore = defineStore("vfs", () => {
         await indexedDbVfs.initialize();
         await refreshDirectory("/");
         await refreshNodes();
-        await openFile("/main.pseudo");
         initialized.value = true;
     }
 
@@ -156,8 +155,8 @@ export const useVfsStore = defineStore("vfs", () => {
             currentDirectory.value === path
                 ? nextPath
                 : currentDirectory.value.startsWith(`${path}/`)
-                  ? `${nextPath}${currentDirectory.value.slice(path.length)}`
-                  : currentDirectory.value;
+                    ? `${nextPath}${currentDirectory.value.slice(path.length)}`
+                    : currentDirectory.value;
         await refreshDirectoryWithFallback(nextDirectory);
         await refreshNodes();
 

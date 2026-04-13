@@ -48,7 +48,7 @@ export const useRuntimeStore = defineStore("runtime", () => {
     const running = ref(false);
     const lastRunSuccess = ref<boolean | null>(null);
     const lastError = ref<string | null>(null);
-    const activeFilePath = ref("/main.pseudo");
+    const activeFilePath = ref("");
     const debugMode = ref(false);
     const debugSessionActive = ref(false);
     const debugPaused = ref(false);
