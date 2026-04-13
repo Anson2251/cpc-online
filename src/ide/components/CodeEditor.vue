@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import {
+  acceptCompletion,
   autocompletion,
   type Completion,
   type CompletionContext,
   type CompletionResult,
   completionKeymap,
 } from "@codemirror/autocomplete";
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching } from "@codemirror/language";
 import {
   Compartment,
@@ -95,6 +96,7 @@ const builtinMark = Decoration.mark({ class: "cm-pc-builtin" });
 const operatorMark = Decoration.mark({ class: "cm-pc-operator" });
 const commentMark = Decoration.mark({ class: "cm-pc-comment" });
 const stringMark = Decoration.mark({ class: "cm-pc-string" });
+const numberMark = Decoration.mark({ class: "cm-pc-number" });
 
 function buildDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>();
@@ -102,7 +104,7 @@ function buildDecorations(view: EditorView): DecorationSet {
   for (const { from, to } of view.visibleRanges) {
     const text = view.state.doc.sliceString(from, to);
     const tokenRegex =
-      /\/\/.*$|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|<-|<=|>=|<>|[=<>+\-*/&]|\b[A-Za-z_][A-Za-z0-9_]*\b/gm;
+      /\/\/.*$|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\b\d+(?:\.\d+)?\b|<-|<=|>=|<>|[=<>+\-*/&]|\b[A-Za-z_][A-Za-z0-9_]*\b/gm;
     let match: RegExpExecArray | null;
     while ((match = tokenRegex.exec(text)) !== null) {
       const start = from + match.index;
@@ -118,7 +120,9 @@ function buildDecorations(view: EditorView): DecorationSet {
         continue;
       }
 
-      if (TYPE_LOOKUP.has(token)) {
+      if (/^\d+(?:\.\d+)?$/.test(token)) {
+        builder.add(start, end, numberMark);
+      } else if (TYPE_LOOKUP.has(token)) {
         builder.add(start, end, typeMark);
       } else if (BOOLEAN_LOOKUP.has(token)) {
         builder.add(start, end, booleanMark);
@@ -165,15 +169,16 @@ const editorThemeVars = computed(() => ({
   "--cm-selection": theme.value.infoColorSuppl,
   "--cm-selection-opacity": "0.24",
   "--cm-cursor": theme.value.primaryColor,
-  "--cm-bracket-match-bg": theme.value.hoverColor,
+  "--cm-bracket-match-bg": theme.value.successColorSuppl,
   "--cm-border": theme.value.dividerColor,
   "--cm-font": theme.value.fontFamilyMono,
-  "--cm-keyword": theme.value.primaryColor,
+  "--cm-keyword": theme.value.successColorHover,
   "--cm-operator": theme.value.warningColor,
   "--cm-type": theme.value.successColor,
-  "--cm-boolean": theme.value.warningColor,
+  "--cm-boolean": theme.value.infoColor,
   "--cm-comment": theme.value.textColor3,
   "--cm-string": theme.value.infoColor,
+  "--cm-number": theme.value.infoColor,
   "--cm-builtin": theme.value.errorColor,
   "--cm-complete-bg": theme.value.popoverColor,
   "--cm-complete-fg": theme.value.textColor1,
@@ -281,7 +286,13 @@ function createEditorState(content: string): EditorState {
       bracketMatching(),
       pseudocodeCompartment.of(createPseudocodeExtension()),
       debugLineCompartment.of(createDebugLineExtension()),
-      keymap.of([...defaultKeymap, ...historyKeymap, ...completionKeymap]),
+      keymap.of([
+        { key: "Tab", run: acceptCompletion },
+        indentWithTab,
+        ...defaultKeymap,
+        ...historyKeymap,
+        ...completionKeymap,
+      ]),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           emit("update:modelValue", update.state.doc.toString());
@@ -471,7 +482,8 @@ watch(
 
 .code-editor-host :deep(.cm-pc-type) {
   color: var(--cm-type);
-  font-weight: 600;
+  font-weight: 300;
+  font-style: italic;
 }
 
 .code-editor-host :deep(.cm-pc-boolean) {
@@ -491,6 +503,11 @@ watch(
 
 .code-editor-host :deep(.cm-pc-string) {
   color: var(--cm-string);
+}
+
+.code-editor-host :deep(.cm-pc-number) {
+  color: var(--cm-number);
+  font-weight: 600;
 }
 
 .code-editor-host :deep(.cm-tooltip-autocomplete) {
