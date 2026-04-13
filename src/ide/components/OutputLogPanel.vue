@@ -80,7 +80,7 @@ watch(
     content-style="padding: 0 12px; height: 100%; min-height: 0;"
   >
     <template #header>
-      <NTabs v-model:value="activeTab" type="segment" size="small" class="panel-tabs">
+      <NTabs v-model:value="activeTab" size="small" class="panel-tabs">
         <NTabPane name="output" tab="Output" />
         <NTabPane name="debug" tab="Debug" />
       </NTabs>

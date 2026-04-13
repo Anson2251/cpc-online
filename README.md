@@ -94,4 +94,4 @@ pnpm format
 
 ## License
 
-This project is licensed under GPL-3.0.
+This project is licensed under AGPL.

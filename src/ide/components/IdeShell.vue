@@ -13,22 +13,38 @@ import {
 import {
   NButton,
   NCard,
+  NCollapse,
+  NCollapseItem,
   NDropdown,
   NEmpty,
   NIcon,
   NLayout,
   NLayoutFooter,
+  NModal,
   NSpace,
   NSplit,
   NTabPane,
   NTag,
   NTabs,
+  NA,
+  NP,
+  NH2,
   type DropdownOption,
   NTooltip,
   useThemeVars,
   useMessage,
 } from "naive-ui";
-import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, watch } from "vue";
+import {
+  computed,
+  defineComponent,
+  h,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+} from "vue";
 
 import { useRuntimeStore } from "@/ide/stores/runtime";
 import { useVfsStore } from "@/ide/stores/vfs";
@@ -121,14 +137,28 @@ const brandDockStyle = computed(() => ({
   boxShadow: theme.value.boxShadow1,
 }));
 
-const brandTitleStyle = computed(() => ({
-  color: theme.value.textColor2,
-}));
+const showAboutDialog = ref(false);
+const aboutExpandedNames = ref<Array<string | number>>([]);
+
+const aboutModalWidth = computed(() =>
+  aboutExpandedNames.value.includes("license")
+    ? "min(680px, calc(100vw - 24px))"
+    : "min(480px, calc(100vw - 24px))",
+);
 
 function handleThemeModeSelect(key: string | number): void {
   if (key === "light" || key === "dark" || key === "system") {
     emit("update:theme-mode", key);
   }
+}
+
+function openAboutDialog(): void {
+  showAboutDialog.value = true;
+}
+
+function closeAboutDialog(): void {
+  showAboutDialog.value = false;
+  aboutExpandedNames.value = [];
 }
 
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -526,7 +556,9 @@ watch(
         </NTooltip>
       </NDropdown>
 
-      <span class="ide-brand-title" :style="brandTitleStyle">CPC-ONLINE</span>
+      <NButton quaternary size="small" aria-label="About CPC-ONLINE" @click="openAboutDialog">
+        <span class="ide-brand-title">CPC-ONLINE</span>
+      </NButton>
       <div class="ide-brand-links">
         <a
           :href="mainRepoUrl"
@@ -568,6 +600,44 @@ watch(
         </a>
       </div>
     </div>
+
+    <NModal
+      :show="showAboutDialog"
+      preset="card"
+      title="About"
+      :style="{ width: aboutModalWidth, transition: 'width .15s ease-in-out' }"
+      :bordered="false"
+      role="dialog"
+      aria-modal="true"
+      @update:show="(value) => (showAboutDialog = value)"
+      @close="closeAboutDialog"
+    >
+      <NH2 prefix="bar">CPC Online</NH2>
+      <NSpace vertical :size="12">
+        <NP class="about-text">An online runtime for CAIE-style pseudocode.</NP>
+        <NCard size="small" class="license-content">
+          <NCollapse v-model:expanded-names="aboutExpandedNames">
+            <NCollapseItem title="License" name="license">
+              <template #header-extra>
+                <NTag type="info">AGPL</NTag>
+              </template>
+              Copyright (C) 2026 Anson2251 (Heyan Zhu)
+              <br /><br />
+              This program is free software: you can redistribute it and/or modify it under the
+              terms of the GNU Affero General Public License as published by the Free Software
+              Foundation, either version 3 of the License, or (at your option) any later version.
+              <br /><br />
+              This program is distributed in the hope that it will be useful, but WITHOUT ANY
+              WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+              PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+              <br /><br />
+              You should have received a copy of the GNU Affero General Public License along with
+              this program. If not, see <NA>https://www.gnu.org/licenses/</NA>.
+            </NCollapseItem>
+          </NCollapse>
+        </NCard>
+      </NSpace>
+    </NModal>
   </NLayout>
 </template>
 
@@ -618,6 +688,10 @@ watch(
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
+}
+
+.about-text {
+  margin: 0;
 }
 
 .ide-brand-links {
