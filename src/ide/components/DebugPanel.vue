@@ -336,7 +336,7 @@ function focusScope(scopeKey: string): void {
 
     <NTabs v-model:value="activeTab" type="line" placement="left" size="small" class="debug-tabs">
       <NTabPane name="stack" tab="Call Stack">
-        <div v-if="callStack.length === 0" class="debug-empty">No stack frames</div>
+        <div v-if="callStack.length === 0" class="debug-empty"><span>No stack frames</span></div>
         <NTable v-else size="small" :bordered="false" :single-line="false" class="stack-table">
           <thead>
             <tr>
@@ -467,7 +467,10 @@ function focusScope(scopeKey: string): void {
 }
 
 .debug-empty {
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 12px;
+  opacity: 0.8;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
 }
 </style>
