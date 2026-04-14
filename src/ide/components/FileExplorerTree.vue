@@ -401,7 +401,9 @@ async function handleItemAction(key: string | number): Promise<void> {
       return;
     }
     await vfs.deletePath(itemTargetPath.value);
-    emit("fileSelected", vfs.activePath);
+    if (vfs.activePath) {
+      emit("fileSelected", vfs.activePath);
+    }
   }
 }
 

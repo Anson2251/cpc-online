@@ -122,6 +122,9 @@ export const useVfsStore = defineStore("vfs", () => {
             const nextTab = openedTabs.value[openedTabs.value.length - 1];
             if (nextTab) {
                 await openFile(nextTab);
+            } else {
+                activePath.value = "";
+                activeContent.value = "";
             }
         }
     }
