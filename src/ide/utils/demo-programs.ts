@@ -1,6 +1,6 @@
 export const starterProgram = `
 DECLARE message : STRING
-message <- "Hello from vibe-cpc
+message <- "Hello from vibe-cpc"
 OUTPUT message
 `.trim();
 
