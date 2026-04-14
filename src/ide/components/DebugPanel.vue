@@ -459,11 +459,15 @@ function focusScope(scopeKey: string): void {
 .stack-table :deep(th),
 .stack-table :deep(td) {
   padding: 2px 6px;
+  user-select: text;
+  cursor: text;
 }
 
 .variable-table :deep(th),
 .variable-table :deep(td) {
   padding: 2px 6px;
+  user-select: text;
+  cursor: text;
 }
 
 .variable-table :deep(.n-collapse-item) {

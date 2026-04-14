@@ -569,6 +569,7 @@ watch(
               <template #header-extra>
                 <NTag type="info">AGPL</NTag>
               </template>
+              <div class="about-text-content">
               Copyright (C) 2026 Anson2251 (Heyan Zhu) and its contributors.
               <br /><br />
               This program is free software: you can redistribute it and/or modify it under the
@@ -581,6 +582,7 @@ watch(
               <br /><br />
               You should have received a copy of the GNU Affero General Public License along with
               this program. If not, see <NA href="https://www.gnu.org/licenses/">https://www.gnu.org/licenses/</NA>.
+                </div>
             </NCollapseItem>
           </NCollapse>
         </NCard>
@@ -640,6 +642,11 @@ watch(
 
 .about-text {
   margin: 0;
+}
+
+.about-text-content, .about-text-content * {
+  user-select: text;
+  cursor: text;
 }
 
 .ide-brand-links {

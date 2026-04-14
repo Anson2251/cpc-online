@@ -241,6 +241,8 @@ watch(
 .log-text {
   white-space: pre-wrap;
   font-size: 12px;
+  user-select: text;
+  cursor: text;
 }
 
 .input-row {

@@ -445,6 +445,8 @@ watch(
 
 .code-editor-host :deep(.cm-content) {
   caret-color: var(--cm-cursor);
+  user-select: text;
+  cursor: text;
 }
 
 .code-editor-host :deep(.cm-gutters) {
@@ -460,6 +462,8 @@ watch(
 .code-editor-host :deep(.cm-pc-breakpoint-gutter) {
   width: 16px;
   text-align: center;
+  user-select: none;
+  cursor: pointer;
   background-color: transparent;
   transition: background-color 0.1s ease;
 }
@@ -555,6 +559,11 @@ watch(
   background: var(--cm-complete-bg);
   color: var(--cm-complete-fg);
   border: 1px solid var(--cm-complete-border);
+}
+
+.code-editor-host :deep(.cm-tooltip-autocomplete *) {
+  user-select: none;
+  cursor: pointer;
 }
 
 .code-editor-host :deep(.cm-tooltip-autocomplete ul li) {
