@@ -27,7 +27,9 @@ import {
   ViewPlugin,
 } from "@codemirror/view";
 import { useThemeVars } from "naive-ui";
-import { onBeforeUnmount, onMounted, ref, watch, computed } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch, computed, inject, Ref } from "vue";
+
+const themePrefered = inject<Ref<"light" | "dark">>("theme-prefered");
 
 import { KEYWORD_TOKENS, OPERATOR_TOKENS, TokenType } from "@/libs/cpc-core/src/lexer/tokens";
 import builtInFunctions from "@/libs/cpc-core/src/runtime/builtin-functions";
@@ -159,33 +161,59 @@ const pseudocodeHighlighting = ViewPlugin.fromClass(
 ) as Extension;
 
 const theme = useThemeVars();
-const editorThemeVars = computed(() => ({
-  "--cm-bg": theme.value.cardColor,
-  "--cm-fg": theme.value.textColor1,
-  "--cm-fg-muted": theme.value.textColor3,
-  "--cm-gutter-bg": theme.value.bodyColor,
-  "--cm-gutter-fg": theme.value.textColor3,
-  "--cm-line-active": theme.value.actionColor,
-  "--cm-selection": theme.value.infoColorSuppl,
-  "--cm-selection-opacity": "0.24",
-  "--cm-cursor": theme.value.primaryColor,
-  "--cm-bracket-match-bg": theme.value.successColorSuppl,
-  "--cm-border": theme.value.dividerColor,
-  "--cm-font": theme.value.fontFamilyMono,
-  "--cm-keyword": theme.value.successColorHover,
-  "--cm-operator": theme.value.warningColor,
-  "--cm-type": theme.value.successColor,
-  "--cm-boolean": theme.value.infoColor,
-  "--cm-comment": theme.value.textColor3,
-  "--cm-string": theme.value.infoColor,
-  "--cm-number": theme.value.infoColor,
-  "--cm-builtin": theme.value.errorColor,
-  "--cm-complete-bg": theme.value.popoverColor,
-  "--cm-complete-fg": theme.value.textColor1,
-  "--cm-complete-border": theme.value.borderColor,
-  "--cm-complete-active": theme.value.primaryColorSuppl,
-  "--cm-complete-active-fg": theme.value.textColor1,
-}));
+const editorThemeVars = computed(() => {
+  const uiVars = {
+    "--cm-bg": theme.value.cardColor,
+    "--cm-fg": theme.value.textColor1,
+    "--cm-fg-muted": theme.value.textColor3,
+    "--cm-gutter-bg": theme.value.bodyColor,
+    "--cm-gutter-fg": theme.value.textColor3,
+    "--cm-line-active": theme.value.actionColor,
+    "--cm-selection": theme.value.infoColorSuppl,
+    "--cm-selection-opacity": "0.24",
+    "--cm-cursor": theme.value.primaryColor,
+    "--cm-bracket-match-bg": theme.value.successColorSuppl,
+    "--cm-border": theme.value.dividerColor,
+    "--cm-font": theme.value.fontFamilyMono,
+    "--cm-comment": theme.value.textColor3,
+    "--cm-complete-bg": theme.value.popoverColor,
+    "--cm-complete-fg": theme.value.textColor1,
+    "--cm-complete-border": theme.value.borderColor,
+    "--cm-complete-active": theme.value.primaryColorSuppl,
+    "--cm-complete-active-fg": theme.value.baseColor,
+    "--cm-breakpoint": theme.value.errorColor,
+  };
+
+  // Syntax highlighting colors
+  let syntaxColors;
+  if (themePrefered && themePrefered.value === "dark") {
+    syntaxColors = {
+      "--cm-keyword": "#FF79C6",
+      "--cm-operator": "#FFB86C",
+      "--cm-type": "#8BE9FD",
+      "--cm-boolean": "#BD93F9",
+      "--cm-string": "#F1FA8C",
+      "--cm-number": "#FFB86C",
+      "--cm-builtin": "#50FA7B",
+      "--cm-variable": "#F8F8F2",
+      "--cm-bracket": "#FFB86C",
+    };
+  } else {
+    syntaxColors = {
+      "--cm-keyword": "#D73A49",
+      "--cm-operator": "#D73A49",
+      "--cm-type": "#6F42C1",
+      "--cm-boolean": "#005CC5",
+      "--cm-string": "#032F62",
+      "--cm-number": "#005CC5",
+      "--cm-builtin": "#22863A",
+      "--cm-variable": "#24292E",
+      "--cm-bracket": "#D73A49",
+    };
+  }
+
+  return { ...uiVars, ...syntaxColors };
+});
 
 const props = defineProps<{
   modelValue: string;
@@ -425,8 +453,15 @@ watch(
   border-right: 1px solid var(--cm-border);
 }
 
+.code-editor-host :deep(.cm-pc-breakpoint-gutter):hover {
+  background-color: rgba(128, 128, 128, 0.2);
+}
+
 .code-editor-host :deep(.cm-pc-breakpoint-gutter) {
   width: 16px;
+  text-align: center;
+  background-color: transparent;
+  transition: background-color 0.1s ease;
 }
 
 .code-editor-host :deep(.cm-pc-breakpoint-dot) {
@@ -434,7 +469,7 @@ watch(
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: var(--cm-builtin);
+  background: var(--cm-breakpoint);
 }
 
 .code-editor-host :deep(.cm-pc-active-debug-line) {
@@ -472,12 +507,12 @@ watch(
 
 .code-editor-host :deep(.cm-pc-keyword) {
   color: var(--cm-keyword);
-  font-weight: 600;
+  font-weight: 700; /* extra bold */
 }
 
 .code-editor-host :deep(.cm-pc-operator) {
   color: var(--cm-operator);
-  font-weight: 600;
+  font-weight: 800; /* black / heavy – distinct from keyword */
 }
 
 .code-editor-host :deep(.cm-pc-type) {
@@ -488,26 +523,32 @@ watch(
 
 .code-editor-host :deep(.cm-pc-boolean) {
   color: var(--cm-boolean);
-  font-weight: 600;
+  font-weight: 700;
+  font-style: normal;
 }
 
 .code-editor-host :deep(.cm-pc-comment) {
   color: var(--cm-comment);
   font-style: italic;
+  font-weight: 400;
 }
 
 .code-editor-host :deep(.cm-pc-builtin) {
   color: var(--cm-builtin);
-  font-weight: 600;
+  font-weight: 700;
+  text-decoration: underline;
 }
 
 .code-editor-host :deep(.cm-pc-string) {
   color: var(--cm-string);
+  font-weight: 400;
+  font-style: normal;
 }
 
 .code-editor-host :deep(.cm-pc-number) {
   color: var(--cm-number);
-  font-weight: 600;
+  font-weight: 700;
+  font-style: normal;
 }
 
 .code-editor-host :deep(.cm-tooltip-autocomplete) {

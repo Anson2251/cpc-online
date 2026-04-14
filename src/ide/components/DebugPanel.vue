@@ -272,13 +272,11 @@ const displayScopes = computed<DisplayScope[]>(() => {
 });
 
 const stackFrames = computed<StackFrameRow[]>(() => {
-  const frames = callStack.value
-    .map((frame, index) => ({
-      key: `${frame.routineName}-${index}`,
-      frame,
-      scopeKey: `scope-${callStack.value.length - 1 - index}`,
-    }))
-    .reverse();
+  const frames = callStack.value.map((frame, index) => ({
+    key: `${frame.routineName}-${index}`,
+    frame,
+    scopeKey: `scope-${callStack.value.length - 1 - index}`,
+  }));
 
   return frames.map((frame, index) => ({
     ...frame,
@@ -291,11 +289,13 @@ const variableColumns: DataTableColumns<VariableRow> = [
     title: "Name",
     key: "name",
     width: 120,
+    render: (raw) => h("code", raw.name),
   },
   {
     title: "Type",
     key: "typeLabel",
     width: 170,
+    render: (raw) => h("code", raw.typeLabel),
   },
   {
     title: "Value",
@@ -370,7 +370,11 @@ function focusScope(scopeKey: string): void {
       </NTabPane>
 
       <NTabPane name="variables" tab="Variables" style="overflow: auto">
-        <NCollapse v-model:expanded-names="expandedScopeNames" display-directive="show" style="padding-top: 8px;">
+        <NCollapse
+          v-model:expanded-names="expandedScopeNames"
+          display-directive="show"
+          style="padding-top: 8px"
+        >
           <NCollapseItem
             v-for="scope in displayScopes"
             :key="scope.key"
@@ -460,6 +464,10 @@ function focusScope(scopeKey: string): void {
 .variable-table :deep(th),
 .variable-table :deep(td) {
   padding: 2px 6px;
+}
+
+.variable-table :deep(.n-collapse-item) {
+  margin: 0;
 }
 
 .stack-row:hover {

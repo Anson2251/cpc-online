@@ -2,8 +2,8 @@ import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 
 import type { VfsEntry, VfsFileEntry, VfsListItem, VfsNodeInfo } from "./types";
 
-import { getName, getParentPath, joinPath, normalizePath } from "./path";
 import { starterProgram, debuggerDemoProgram } from "../utils/demo-programs";
+import { getName, getParentPath, joinPath, normalizePath } from "./path";
 
 const DB_NAME = "cpc-online-ide-vfs";
 const DB_VERSION = 1;
@@ -100,11 +100,11 @@ export class IndexedDbVfs {
         const starterFilePath = "/hello.pseudo";
         const debuggerDemoFilePath = "/debugger-demo.pseudo";
 
-        if (!await db.get(STORE_NAME, starterFilePath)) {
+        if (!(await db.get(STORE_NAME, starterFilePath))) {
             await this.writeTextFile(starterFilePath, starterProgram);
         }
 
-        if (!await db.get(STORE_NAME, debuggerDemoFilePath)) {
+        if (!(await db.get(STORE_NAME, debuggerDemoFilePath))) {
             await this.writeTextFile(debuggerDemoFilePath, debuggerDemoProgram);
         }
     }

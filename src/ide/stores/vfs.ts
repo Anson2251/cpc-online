@@ -155,8 +155,8 @@ export const useVfsStore = defineStore("vfs", () => {
             currentDirectory.value === path
                 ? nextPath
                 : currentDirectory.value.startsWith(`${path}/`)
-                    ? `${nextPath}${currentDirectory.value.slice(path.length)}`
-                    : currentDirectory.value;
+                  ? `${nextPath}${currentDirectory.value.slice(path.length)}`
+                  : currentDirectory.value;
         await refreshDirectoryWithFallback(nextDirectory);
         await refreshNodes();
 

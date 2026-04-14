@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { darkTheme, lightTheme, NConfigProvider, NMessageProvider } from "naive-ui";
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { themeOverridesDark, themeOverridesLight } from "./ide/utils/theme";
+import { computed, onBeforeUnmount, onMounted, ref, provide } from "vue";
 
 import IdeShell from "@/ide/components/IdeShell.vue";
+
+import { themeOverridesDark, themeOverridesLight } from "./ide/utils/theme";
 
 type ThemeMode = "light" | "dark" | "system";
 
@@ -12,15 +13,21 @@ const themeMode = ref<ThemeMode>("system");
 const prefersDark = ref(false);
 let systemThemeQuery: MediaQueryList | null = null;
 
-const appliedTheme = computed(() => {
+const themeInUse = computed(() => {
   if (themeMode.value === "dark") {
-    return darkTheme;
+    return "dark";
   }
   if (themeMode.value === "light") {
-    return lightTheme;
+    return "light";
   }
-  return prefersDark.value ? darkTheme : lightTheme;
+  return prefersDark.value ? "dark" : "light";
 });
+
+const appliedTheme = computed(() => {
+  return themeInUse.value ? darkTheme : lightTheme;
+});
+
+provide("theme-prefered", themeInUse);
 
 const appliedOverride = computed(() => {
   if (themeMode.value === "dark") {
@@ -58,8 +65,6 @@ function setThemeMode(next: ThemeMode): void {
   themeMode.value = next;
   window.localStorage.setItem(THEME_STORAGE_KEY, next);
 }
-
-
 </script>
 
 <template>
