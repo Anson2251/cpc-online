@@ -124,7 +124,7 @@ function createBoundedArrayRows(
   value: unknown,
   dimensionIndex = 0,
   indices: number[] = [],
-): Array<{ key: string; slot: string; value: string }> {
+): Array<{ key: string; slot: string; rawValue: unknown; elementType: TypeInfo }> {
   const bound = typeInfo.bounds[dimensionIndex];
   if (!bound) {
     return [];
@@ -136,7 +136,7 @@ function createBoundedArrayRows(
     return [];
   }
 
-  const rows: Array<{ key: string; slot: string; value: string }> = [];
+  const rows: Array<{ key: string; slot: string; rawValue: unknown; elementType: TypeInfo }> = [];
   const arrayValue = Array.isArray(value) ? value : [];
 
   for (let current = lower; current <= upper; current += 1) {
@@ -153,7 +153,8 @@ function createBoundedArrayRows(
     rows.push({
       key: `${slot}`,
       slot,
-      value: formatPrimitive(entryValue),
+      rawValue: entryValue,
+      elementType: typeInfo.elementType,
     });
   }
 
@@ -169,6 +170,79 @@ function formatSetValue(value: unknown): string {
     return "{}";
   }
   return `{ ${value.map((entry) => formatPrimitive(entry)).join(", ")} }`;
+}
+
+function renderValue(value: unknown, typeInfo: TypeInfo) {
+  if (isPrimitiveType(typeInfo)) {
+    return h("code", formatPrimitive(value));
+  }
+  if (isSetType(typeInfo)) {
+    return h("code", formatSetValue(value));
+  }
+  if (isEnumType(typeInfo)) {
+    return h("code", formatPrimitive(value));
+  }
+  if (isArrayType(typeInfo)) {
+    const rows = createBoundedArrayRows(typeInfo, value);
+    return h(
+      NCollapse,
+      { class: "value-collapse", displayDirective: "show" },
+      {
+        default: () =>
+          h(
+            NCollapseItem,
+            { title: `ARRAY (${rows.length} slots)`, name: "details" },
+            {
+              default: () =>
+                h(
+                  NTable,
+                  { size: "small", bordered: false, singleLine: false },
+                  {
+                    default: () => [
+                      h("thead", [h("tr", [h("th", "Slot"), h("th", "Value")])]),
+                      h(
+                        "tbody",
+                        rows.length > 0
+                          ? rows.map((entry) =>
+                              h("tr", { key: entry.key }, [
+                                h("td", entry.slot),
+                                h("td", [renderValue(entry.rawValue, entry.elementType)]),
+                              ]),
+                            )
+                          : [h("tr", [h("td", { colspan: 2 }, "No slots")])],
+                      ),
+                    ],
+                  },
+                ),
+            },
+          ),
+      },
+    );
+  }
+  if (isRecordType(typeInfo)) {
+    const nodes = createRecordTree(value);
+    return h(
+      NCollapse,
+      { class: "value-collapse", displayDirective: "show" },
+      {
+        default: () =>
+          h(
+            NCollapseItem,
+            { title: `RECORD (${nodes.length} fields)`, name: "details" },
+            {
+              default: () =>
+                h(NTree, {
+                  blockLine: true,
+                  data: nodes,
+                  expandOnClick: true,
+                  defaultExpandedKeys: nodes.map((node) => node.key as string),
+                }),
+            },
+          ),
+      },
+    );
+  }
+  return h("code", formatPrimitive(value));
 }
 
 const callStack = computed<DebugFrame[]>(() => props.snapshot?.callStack ?? []);
@@ -226,88 +300,8 @@ const variableColumns: DataTableColumns<VariableRow> = [
   {
     title: "Value",
     key: "value",
-    render: (row) => {
-      const { variable } = row;
-      if (isPrimitiveType(variable.typeInfo)) {
-        return h("code", formatPrimitive(variable.value));
-      }
-
-      if (isSetType(variable.typeInfo)) {
-        return h("code", formatSetValue(variable.value));
-      }
-
-      if (isEnumType(variable.typeInfo)) {
-        return h("code", formatPrimitive(variable.value));
-      }
-
-      if (isArrayType(variable.typeInfo)) {
-        const arrayType = variable.typeInfo;
-        const rows = createBoundedArrayRows(arrayType, variable.value).map((entry) => ({
-          ...entry,
-          slot: `${variable.name}${entry.slot}`,
-        }));
-        return h(
-          NCollapse,
-          { class: "value-collapse", displayDirective: "show" },
-          {
-            default: () =>
-              h(
-                NCollapseItem,
-                { title: `ARRAY (${rows.length} slots)`, name: "details" },
-                {
-                  default: () =>
-                    h(
-                      NTable,
-                      { size: "small", bordered: false, singleLine: false },
-                      {
-                        default: () => [
-                          h("thead", [h("tr", [h("th", "Slot"), h("th", "Value")])]),
-                          h(
-                            "tbody",
-                            rows.length > 0
-                              ? rows.map((entry) =>
-                                  h("tr", { key: entry.key }, [
-                                    h("td", entry.slot),
-                                    h("td", [h("code", entry.value)]),
-                                  ]),
-                                )
-                              : [h("tr", [h("td", { colspan: 2 }, "No slots")])],
-                          ),
-                        ],
-                      },
-                    ),
-                },
-              ),
-          },
-        );
-      }
-
-      if (isRecordType(variable.typeInfo)) {
-        const nodes = createRecordTree(variable.value);
-        return h(
-          NCollapse,
-          { class: "value-collapse", displayDirective: "show" },
-          {
-            default: () =>
-              h(
-                NCollapseItem,
-                { title: `RECORD (${nodes.length} fields)`, name: "details" },
-                {
-                  default: () =>
-                    h(NTree, {
-                      blockLine: true,
-                      data: nodes,
-                      expandOnClick: true,
-                      defaultExpandedKeys: nodes.map((node) => node.key as string),
-                    }),
-                },
-              ),
-          },
-        );
-      }
-
-      return h("code", formatPrimitive(variable.value));
-    },
+    width: 320,
+    render: (row) => renderValue(row.variable.value, row.variable.typeInfo),
   },
 ];
 
@@ -376,7 +370,7 @@ function focusScope(scopeKey: string): void {
       </NTabPane>
 
       <NTabPane name="variables" tab="Variables" style="overflow: auto">
-        <NCollapse v-model:expanded-names="expandedScopeNames" display-directive="show">
+        <NCollapse v-model:expanded-names="expandedScopeNames" display-directive="show" style="padding-top: 8px;">
           <NCollapseItem
             v-for="scope in displayScopes"
             :key="scope.key"
@@ -391,6 +385,7 @@ function focusScope(scopeKey: string): void {
               :data="rowsForScope(scope)"
               :bordered="false"
               :single-line="false"
+              class="variable-table"
             />
           </NCollapseItem>
         </NCollapse>
@@ -443,10 +438,6 @@ function focusScope(scopeKey: string): void {
   overflow: auto;
 }
 
-.debug-tabs :deep(.n-tab-pane) {
-  padding-top: 2px;
-}
-
 .debug-tabs :deep(.n-tabs-tab) {
   padding-top: 4px;
   padding-bottom: 4px;
@@ -454,7 +445,6 @@ function focusScope(scopeKey: string): void {
 
 .value-collapse :deep(.n-collapse-item__header) {
   min-height: 22px;
-  padding-top: 0;
   padding-bottom: 2px;
 }
 
@@ -464,8 +454,12 @@ function focusScope(scopeKey: string): void {
 
 .stack-table :deep(th),
 .stack-table :deep(td) {
-  padding-top: 4px;
-  padding-bottom: 4px;
+  padding: 2px 6px;
+}
+
+.variable-table :deep(th),
+.variable-table :deep(td) {
+  padding: 2px 6px;
 }
 
 .stack-row:hover {
