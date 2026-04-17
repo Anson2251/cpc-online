@@ -140,6 +140,7 @@ watch(
             :item-size="24"
             key-field="id"
             class="output-list"
+            item-resizable
           >
             <template #default="{ item }">
               <div class="log-row" :class="item.stream">

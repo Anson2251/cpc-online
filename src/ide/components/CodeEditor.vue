@@ -9,6 +9,7 @@ import {
 } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching } from "@codemirror/language";
+import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
 import {
   Compartment,
   EditorSelection,
@@ -175,6 +176,7 @@ const editorThemeVars = computed(() => {
     "--cm-bracket-match-bg": theme.value.successColorSuppl,
     "--cm-border": theme.value.dividerColor,
     "--cm-font": theme.value.fontFamilyMono,
+    "--cm-ui-font": theme.value.fontFamily,
     "--cm-comment": theme.value.textColor3,
     "--cm-complete-bg": theme.value.popoverColor,
     "--cm-complete-fg": theme.value.textColor1,
@@ -320,7 +322,9 @@ function createEditorState(content: string): EditorState {
         ...defaultKeymap,
         ...historyKeymap,
         ...completionKeymap,
+        ...searchKeymap,
       ]),
+      highlightSelectionMatches(),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           emit("update:modelValue", update.state.doc.toString());
@@ -573,5 +577,64 @@ watch(
 
 .code-editor-host :deep(.cm-tooltip-autocomplete .cm-completionIcon) {
   opacity: 0.8;
+}
+
+.code-editor-host :deep(.cm-panel) {
+  background: var(--cm-gutter-bg);
+  padding: 4px 8px;
+  font-family: var(--cm-ui-font), monospace;
+  font-size: 13px;
+}
+
+.code-editor-host :deep(.cm-panels-bottom) {
+  background: var(--cm-gutter-bg);
+  border-top: 1px solid var(--cm-border);
+  padding: 4px 2px;
+}
+
+.code-editor-host :deep(.cm-panel input) {
+  background: var(--cm-bg);
+  color: var(--cm-fg);
+  border: 1px solid var(--cm-border);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.code-editor-host :deep(.cm-panel input:focus) {
+  outline: 1px solid var(--cm-cursor);
+  border-color: var(--cm-cursor);
+}
+
+.code-editor-host :deep(.cm-panel button) {
+  background: var(--cm-bg);
+  color: var(--cm-fg);
+  border: 1px solid var(--cm-border);
+  border-radius: 3px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  min-height: 24px;
+  min-width: 24px;
+}
+
+.code-editor-host :deep(.cm-panel button:hover) {
+  background: var(--cm-line-active);
+}
+
+.code-editor-host :deep(.cm-panel label) {
+  color: var(--cm-fg-muted);
+  font-size: 12px;
+}
+
+.code-editor-host :deep(.cm-searchMatch) {
+  background: color-mix(in srgb, var(--cm-string) 20%, transparent);
+}
+
+.code-editor-host :deep(.cm-searchMatch-selected) {
+  background: color-mix(in srgb, var(--cm-string) 40%, transparent);
+  filter: contrast(1.2);
 }
 </style>

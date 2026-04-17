@@ -322,15 +322,12 @@ const displayScopes = computed<DisplayScope[]>(() => {
 });
 
 const stackFrames = computed<StackFrameRow[]>(() => {
-  const frames = callStack.value.map((frame, index) => ({
+  const total = callStack.value.length;
+  return callStack.value.map((frame, index) => ({
     key: `${frame.routineName}-${index}`,
     frame,
-    scopeKey: `scope-${callStack.value.length - 1 - index}`,
-  }));
-
-  return frames.map((frame, index) => ({
-    ...frame,
-    depth: index,
+    scopeKey: `scope-${total - 1 - index}`,
+    depth: total - 1 - index,
   }));
 });
 
@@ -385,7 +382,7 @@ function focusScope(scopeKey: string): void {
     </NCard>
 
     <NTabs v-model:value="activeTab" type="line" placement="left" size="small" class="debug-tabs">
-      <NTabPane name="stack" tab="Call Stack">
+      <NTabPane name="stack" tab="Call Stack" style="overflow-y: auto;">
         <div v-if="callStack.length === 0" class="debug-empty"><span>No stack frames</span></div>
         <NTable v-else size="small" :bordered="false" :single-line="false" class="stack-table">
           <thead>
@@ -451,7 +448,7 @@ function focusScope(scopeKey: string): void {
 <style scoped>
 .debug-panel,
 .empty-panel {
-  height: calc(100% - 16px);
+  height: calc(100% - 8px);
 }
 
 .empty-panel {
