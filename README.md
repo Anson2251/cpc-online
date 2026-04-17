@@ -117,6 +117,10 @@ pnpm format
 
 AGPL
 
+## Third-Party Content
+
+The **CPC Guide** and **CPC Insert** documents included in this project are copyrighted by **Cambridge University Press & Assessment**. They are used here for educational reference only. All rights remain with the original copyright holder.
+
 ## Contributing
 
 Contributions to the IDE UI (this repository) are always welcome!  

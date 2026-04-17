@@ -658,6 +658,16 @@ watch(
                 <NA href="https://www.gnu.org/licenses/">https://www.gnu.org/licenses/</NA>.
               </div>
             </NCollapseItem>
+            <NCollapseItem title="Third-Party Content" name="third-party">
+              <template #header-extra>
+                <NTag type="warning">Notice</NTag>
+              </template>
+              <div class="about-text-content">
+                The <strong>CPC Guide</strong> and <strong>CPC Insert</strong> documents are
+                copyrighted by Cambridge University Press & Assessment. They are included here for
+                educational reference only. All rights remain with the original copyright holder.
+              </div>
+            </NCollapseItem>
           </NCollapse>
         </NCard>
       </NSpace>
