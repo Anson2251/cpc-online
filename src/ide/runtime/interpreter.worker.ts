@@ -9,13 +9,14 @@ import {
     type TypeInfo,
 } from "@/libs/cpc-core/src/browser-index";
 
-import type { RuntimeWorkerEvent, RuntimeWorkerRequest } from "./worker-messages";
+import type { RuntimeWorkerDoneEvent, RuntimeWorkerEvent, RuntimeWorkerRequest } from "./worker-messages";
 
 declare const self: DedicatedWorkerGlobalScope;
 
 let activeRunId: number | null = null;
 let activeInterpreter: Interpreter | null = null;
 let activeDebugger: DebuggerController | null = null;
+let lastDebugSnapshot: DebugSnapshot | null = null;
 let inputRequestSeq = 0;
 const pendingInputResolvers = new Map<number, (value: string) => void>();
 
@@ -62,7 +63,9 @@ function serializeDebugValue(value: unknown, seen: WeakSet<object> = new WeakSet
         return record;
     }
 
-    return String(value);
+    return typeof value === "number" || typeof value === "boolean"
+        ? String(value)
+        : JSON.stringify(value);
 }
 
 function serializeSnapshot(snapshot: DebugSnapshot): DebugSnapshot {
@@ -84,6 +87,7 @@ function serializeSnapshot(snapshot: DebugSnapshot): DebugSnapshot {
                 value: serializeDebugValue(variable.value),
             })),
         })),
+        error: snapshot.error ? { message: snapshot.error.message, line: snapshot.error.line, column: snapshot.error.column } : undefined,
     };
 }
 
@@ -122,11 +126,29 @@ function serializeDebugType(typeInfo: TypeInfo): TypeInfo {
         };
     }
 
-    return {
-        kind: "SET",
-        name: typeInfo.name,
-        elementType: typeInfo.elementType,
-    };
+    if ("kind" in typeInfo && typeInfo.kind === "SET") {
+        return {
+            kind: "SET",
+            name: typeInfo.name,
+            elementType: typeInfo.elementType,
+        };
+    }
+
+    if ("kind" in typeInfo && typeInfo.kind === "POINTER") {
+        return {
+            kind: "POINTER",
+            name: typeInfo.name,
+            pointedType: serializeDebugType(typeInfo.pointedType),
+        };
+    }
+
+    if ("kind" in typeInfo && typeInfo.kind === "INFERRED") {
+        return {
+            kind: "INFERRED",
+        };
+    }
+
+    return typeInfo;
 }
 
 function postMessageToMain(event: RuntimeWorkerEvent): void {
@@ -226,17 +248,20 @@ self.addEventListener("message", async (event: MessageEvent<RuntimeWorkerRequest
         });
         activeInterpreter = interpreter;
 
-        let removeListener = () => {};
+        let removeListener = () => { };
         if (payload.debug) {
+            lastDebugSnapshot = null;
             const debuggerController = new DebuggerController();
             activeDebugger = debuggerController;
 
             removeListener = debuggerController.onEvent((debugEvent) => {
+                const serialized = serializeSnapshot(debugEvent.snapshot);
+                lastDebugSnapshot = serialized;
                 postMessageToMain({
                     type: "debug",
                     runId,
                     event: debugEvent.type,
-                    snapshot: serializeSnapshot(debugEvent.snapshot),
+                    snapshot: serialized,
                 });
             });
 
@@ -252,11 +277,17 @@ self.addEventListener("message", async (event: MessageEvent<RuntimeWorkerRequest
         activeRunId = null;
         pendingInputResolvers.clear();
 
-        postMessageToMain({
+        const doneEvent: RuntimeWorkerDoneEvent = {
             type: "done",
             runId,
             result,
-        });
+        };
+
+        if (payload.debug && !result.success && lastDebugSnapshot) {
+            doneEvent.finalSnapshot = lastDebugSnapshot;
+        }
+
+        postMessageToMain(doneEvent);
     } catch (error) {
         if (activeInterpreter) {
             await activeInterpreter.dispose();
@@ -273,4 +304,4 @@ self.addEventListener("message", async (event: MessageEvent<RuntimeWorkerRequest
     }
 });
 
-export {};
+export { };

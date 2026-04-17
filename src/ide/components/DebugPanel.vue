@@ -23,6 +23,7 @@ import type {
   DebugSnapshot,
   DebugVariable,
   EnumTypeInfo,
+  PointerTypeInfo,
   SetTypeInfo,
   TypeInfo,
   UserDefinedTypeInfo,
@@ -72,6 +73,21 @@ function isSetType(typeInfo: TypeInfo): typeInfo is SetTypeInfo {
   return typeof typeInfo === "object" && "kind" in typeInfo && typeInfo.kind === "SET";
 }
 
+function isPointerType(typeInfo: TypeInfo): typeInfo is PointerTypeInfo {
+  return typeof typeInfo === "object" && "kind" in typeInfo && typeInfo.kind === "POINTER";
+}
+
+interface PointerDisplayValue {
+  address: number;
+  dereferenced: unknown;
+}
+
+function isPointerDisplayValue(value: unknown): value is PointerDisplayValue {
+  return (
+    typeof value === "object" && value !== null && "address" in value && "dereferenced" in value
+  );
+}
+
 function formatPrimitive(value: unknown): string {
   if (value === null || value === undefined) {
     return "-";
@@ -98,7 +114,18 @@ function formatType(typeInfo: TypeInfo): string {
   if (isEnumType(typeInfo)) {
     return `${typeInfo.name} (ENUM)`;
   }
-  return `${typeInfo.name} (SET OF ${formatType(typeInfo.elementType)})`;
+  if (isSetType(typeInfo)) {
+    const setInfo = typeInfo as SetTypeInfo;
+    return `${setInfo.name} (SET OF ${formatType(setInfo.elementType)})`;
+  }
+  if (typeof typeInfo === "object" && "kind" in typeInfo && typeInfo.kind === "POINTER") {
+    const ptrInfo = typeInfo as PointerTypeInfo;
+    return `${ptrInfo.name} (^${formatType(ptrInfo.pointedType)})`;
+  }
+  if (typeof typeInfo === "object" && "kind" in typeInfo && typeInfo.kind === "INFERRED") {
+    return "INFERRED";
+  }
+  return String(typeInfo);
 }
 
 function createRecordTree(value: unknown): TreeOption[] {
@@ -242,6 +269,29 @@ function renderValue(value: unknown, typeInfo: TypeInfo) {
       },
     );
   }
+  if (isPointerType(typeInfo)) {
+    if (value === 0 || value === null || value === undefined) {
+      return h("code", "NULL");
+    }
+    if (isPointerDisplayValue(value)) {
+      const ptrType = typeInfo as PointerTypeInfo;
+      return h(
+        NCollapse,
+        { class: "value-collapse", displayDirective: "show" },
+        {
+          default: () =>
+            h(
+              NCollapseItem,
+              { title: `PTR @0x${value.address.toString(16).toUpperCase()}`, name: "ptr-details" },
+              {
+                default: () => renderValue(value.dereferenced, ptrType.pointedType),
+              },
+            ),
+        },
+      );
+    }
+    return h("code", `@0x${Number(value).toString(16).toUpperCase()}`);
+  }
   return h("code", formatPrimitive(value));
 }
 
@@ -326,11 +376,11 @@ function focusScope(scopeKey: string): void {
   </div>
 
   <div v-else class="debug-panel">
-    <NCard size="small" bordered content-style="padding: 4px 12px;">
-      <strong>{{ snapshot.reason.toLocaleUpperCase() }}</strong>
+    <NCard size="small" bordered content-style="padding: 4px 12px;" :class="{ 'error-card': snapshot.error }">
+      <strong>{{ snapshot.error ? "ERROR: " + snapshot.error.message : snapshot.reason.toLocaleUpperCase() }}</strong>
       <span class="location-separator">|</span>
       <code
-        >Line {{ snapshot.location.line ?? "-" }}, Col {{ snapshot.location.column ?? "-" }}</code
+        >Line {{ (snapshot.error?.line ?? snapshot.location.line) ?? "-" }}, Col {{ (snapshot.error?.column ?? snapshot.location.column) ?? "-" }}</code
       >
     </NCard>
 
@@ -413,6 +463,11 @@ function focusScope(scopeKey: string): void {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.error-card {
+  background: rgba(255, 60, 60, 0.08);
+  border-color: rgba(255, 60, 60, 0.3);
 }
 
 .location-bar {

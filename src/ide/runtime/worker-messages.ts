@@ -33,6 +33,7 @@ export interface RuntimeWorkerDoneEvent {
     type: "done";
     runId: number;
     result: ExecutionResult;
+    finalSnapshot?: DebugSnapshot;
 }
 
 export interface RuntimeWorkerCrashEvent {

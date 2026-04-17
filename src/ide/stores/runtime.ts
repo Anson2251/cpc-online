@@ -2,8 +2,8 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 
 import type { RuntimeLogEntry } from "@/ide/runtime/types";
-import type { RuntimeWorkerEvent, RuntimeWorkerRequest } from "@/ide/runtime/worker-messages";
 import type { DebugSnapshot } from "@/libs/cpc-core/src/browser-index";
+import type { RuntimeWorkerEvent, RuntimeWorkerRequest } from "@/ide/runtime/worker-messages";
 
 const BREAKPOINTS_STORAGE_KEY = "cpc-online.breakpoints";
 
@@ -75,6 +75,7 @@ export const useRuntimeStore = defineStore("runtime", () => {
         error?: string | null;
         logMessage?: string;
         logStream?: "stdout" | "stderr";
+        finalSnapshot?: DebugSnapshot;
     }): void {
         if (options?.logMessage) {
             logs.value.push({
@@ -102,8 +103,16 @@ export const useRuntimeStore = defineStore("runtime", () => {
         awaitingInput.value = false;
         pendingInputPrompt.value = "";
         pendingInputValue.value = "";
-        debugSessionActive.value = false;
-        debugPaused.value = false;
+
+        if (options?.finalSnapshot) {
+            debugSnapshot.value = options.finalSnapshot;
+            debugSessionActive.value = true;
+            debugPaused.value = false;
+        } else {
+            debugSessionActive.value = false;
+            debugPaused.value = false;
+        }
+
         running.value = false;
 
         const resolve = activeRunResolve;
@@ -163,6 +172,7 @@ export const useRuntimeStore = defineStore("runtime", () => {
                         error: payload.result.success
                             ? null
                             : (payload.result.error?.message ?? "Execution failed"),
+                        finalSnapshot: payload.finalSnapshot,
                     });
                     return;
                 }
