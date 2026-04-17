@@ -188,27 +188,27 @@ const editorThemeVars = computed(() => {
   let syntaxColors;
   if (themePrefered && themePrefered.value === "dark") {
     syntaxColors = {
-      "--cm-keyword": "#FF79C6",
-      "--cm-operator": "#FFB86C",
-      "--cm-type": "#8BE9FD",
-      "--cm-boolean": "#BD93F9",
-      "--cm-string": "#F1FA8C",
-      "--cm-number": "#FFB86C",
-      "--cm-builtin": "#50FA7B",
-      "--cm-variable": "#F8F8F2",
-      "--cm-bracket": "#FFB86C",
+      "--cm-keyword": "#C586C0",
+      "--cm-operator": "#9CDCFE",
+      "--cm-type": "#4EC9B0",
+      "--cm-boolean": "#569CD6",
+      "--cm-string": "#CE9178",
+      "--cm-number": "#B5CEA8",
+      "--cm-builtin": "#DCDCAA",
+      "--cm-variable": "#9CDCFE",
+      "--cm-bracket": "#FFD700",
     };
   } else {
     syntaxColors = {
-      "--cm-keyword": "#D73A49",
-      "--cm-operator": "#D73A49",
-      "--cm-type": "#6F42C1",
-      "--cm-boolean": "#005CC5",
-      "--cm-string": "#032F62",
-      "--cm-number": "#005CC5",
-      "--cm-builtin": "#22863A",
-      "--cm-variable": "#24292E",
-      "--cm-bracket": "#D73A49",
+      "--cm-keyword": "#0000FF",
+      "--cm-operator": "#0451A5",
+      "--cm-type": "#267F99",
+      "--cm-boolean": "#0000FF",
+      "--cm-string": "#A31515",
+      "--cm-number": "#098658",
+      "--cm-builtin": "#795E26",
+      "--cm-variable": "#001080",
+      "--cm-bracket": "#0431FA",
     };
   }
 
@@ -511,24 +511,23 @@ watch(
 
 .code-editor-host :deep(.cm-pc-keyword) {
   color: var(--cm-keyword);
-  font-weight: 700; /* extra bold */
+  font-weight: 600;
 }
 
 .code-editor-host :deep(.cm-pc-operator) {
   color: var(--cm-operator);
-  font-weight: 800; /* black / heavy – distinct from keyword */
+  font-weight: 400;
 }
 
 .code-editor-host :deep(.cm-pc-type) {
   color: var(--cm-type);
-  font-weight: 300;
+  font-weight: 400;
   font-style: italic;
 }
 
 .code-editor-host :deep(.cm-pc-boolean) {
   color: var(--cm-boolean);
-  font-weight: 700;
-  font-style: normal;
+  font-weight: 600;
 }
 
 .code-editor-host :deep(.cm-pc-comment) {
@@ -539,20 +538,17 @@ watch(
 
 .code-editor-host :deep(.cm-pc-builtin) {
   color: var(--cm-builtin);
-  font-weight: 700;
-  text-decoration: underline;
+  font-weight: 600;
 }
 
 .code-editor-host :deep(.cm-pc-string) {
   color: var(--cm-string);
   font-weight: 400;
-  font-style: normal;
 }
 
 .code-editor-host :deep(.cm-pc-number) {
   color: var(--cm-number);
-  font-weight: 700;
-  font-style: normal;
+  font-weight: 500;
 }
 
 .code-editor-host :deep(.cm-tooltip-autocomplete) {

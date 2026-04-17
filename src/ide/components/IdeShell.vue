@@ -646,7 +646,7 @@ watch(
 }
 
 .about-text-content,
-.about-text-content * {
+.about-text-content *:not(a) {
   user-select: text;
   cursor: text;
 }
