@@ -330,7 +330,7 @@ const stackFrames = computed<StackFrameRow[]>(() => {
 
   return frames.map((frame, index) => ({
     ...frame,
-    depth: index + 1,
+    depth: index,
   }));
 });
 
