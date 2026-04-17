@@ -25,6 +25,7 @@
     "codemirror": "^6.0.2",
     "idb": "^8.0.3",
     "jszip": "^3.10.1",
+    "marked": "^18.0.1",
     "naive-ui": "^2.44.1",
     "neverthrow": "^8.2.0",
     "pinia": "^3.0.4",

@@ -2,8 +2,11 @@
 import type { Component } from "vue";
 
 import {
+  ArrowClockwise24Regular,
+  BookOpen20Regular,
   Box16Regular,
   Desktop16Regular,
+  FolderOpen20Regular,
   WeatherMoon16Regular,
   WeatherSunny16Regular,
 } from "@vicons/fluent";
@@ -19,6 +22,7 @@ import {
   NLayoutFooter,
   NModal,
   NPerformantEllipsis,
+  NSelect,
   NSpace,
   NSplit,
   NTabPane,
@@ -28,6 +32,7 @@ import {
   NP,
   NH2,
   type DropdownOption,
+  type SelectOption,
   NTooltip,
   useThemeVars,
   useMessage,
@@ -48,6 +53,7 @@ import { useRuntimeStore } from "@/ide/stores/runtime";
 import { useVfsStore } from "@/ide/stores/vfs";
 
 import CodeEditor from "./CodeEditor.vue";
+import DocViewer from "./DocViewer.vue";
 import FileExplorerTree from "./FileExplorerTree.vue";
 import IdeTitlePane from "./IdeTitlePane.vue";
 import OutputLogPanel from "./OutputLogPanel.vue";
@@ -68,6 +74,15 @@ const message = useMessage();
 const theme = useThemeVars();
 const tabContents = reactive<Record<string, string>>({});
 const tabDirty = reactive<Record<string, boolean>>({});
+
+const leftPaneTab = ref<string>("explorer");
+const activeDocKey = ref<string>("cpc-guide");
+
+const docOptions: SelectOption[] = [
+  { label: "CPC Guide", value: "cpc-guide" },
+  { label: "CPC Insert", value: "cpc-insert" },
+  { label: "CPC Extended", value: "cpc-extended" },
+];
 const editorRefs = reactive<Record<string, { focusEditor?: () => void } | null>>({});
 
 const canRun = computed(() => !runtime.running && Boolean(vfs.activePath));
@@ -392,7 +407,65 @@ watch(
     <NSplit direction="horizontal" :default-size="0.3" :min="0.2" :max="0.5">
       <template #1>
         <div class="explorer-pane">
-          <FileExplorerTree @file-selected="openFile" />
+          <NCard
+            size="small"
+            :bordered="false"
+            style="height: 100%;"
+            content-style="min-height: 0; padding: 0; display: flex; flex-direction: column;"
+            header-style="padding-bottom: 4px; padding-top: 6px;"
+          >
+            <template #header>
+              <NTabs v-model:value="leftPaneTab" size="small" class="panel-tabs" type="bar">
+                <NTabPane name="explorer">
+                  <template #tab>
+                    <NTooltip>
+                      <template #trigger>
+                        <NIcon size="20"><FolderOpen20Regular /></NIcon>
+                      </template>
+                      Explorer
+                    </NTooltip>
+                  </template>
+                </NTabPane>
+                <NTabPane name="docs">
+                  <template #tab>
+                    <NTooltip>
+                      <template #trigger>
+                        <NIcon size="20"><BookOpen20Regular /></NIcon>
+                      </template>
+                      Docs
+                    </NTooltip>
+                  </template>
+                </NTabPane>
+              </NTabs>
+            </template>
+
+            <template #header-extra>
+              <NTooltip v-if="leftPaneTab === 'explorer'">
+                <template #trigger>
+                  <NButton quaternary circle size="small" @click="vfs.refreshNodes">
+                    <template #icon>
+                      <NIcon><ArrowClockwise24Regular /></NIcon>
+                    </template>
+                  </NButton>
+                </template>
+                Refresh
+              </NTooltip>
+              <NSelect
+                v-else
+                v-model:value="activeDocKey"
+                :options="docOptions"
+                size="small"
+                style="width: 140px"
+              />
+            </template>
+
+            <div v-if="leftPaneTab === 'explorer'" class="panel-body">
+              <FileExplorerTree @file-selected="openFile" />
+            </div>
+            <div v-else class="panel-body">
+              <DocViewer :active-doc-key="activeDocKey" />
+            </div>
+          </NCard>
         </div>
       </template>
       <template #2>
@@ -608,6 +681,14 @@ watch(
 }
 
 .explorer-pane {
+  height: 100%;
+}
+
+.panel-tabs {
+  width: 192px;
+}
+
+.panel-body {
   height: 100%;
 }
 

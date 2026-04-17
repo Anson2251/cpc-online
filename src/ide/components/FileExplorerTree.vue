@@ -3,7 +3,6 @@ import type { Component, VNodeChild } from "vue";
 
 import {
   Add24Regular,
-  ArrowClockwise24Regular,
   Archive24Regular,
   Delete24Regular,
   Document16Filled,
@@ -13,12 +12,9 @@ import {
   ArrowDownload24Filled,
 } from "@vicons/fluent";
 import {
-  NButton,
-  NCard,
   NDropdown,
   NIcon,
   NTree,
-  NTooltip,
   NPerformantEllipsis,
   type DropdownOption,
   type TreeOption,
@@ -413,42 +409,20 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="explorer-root">
-    <NCard
-      class="explorer-card"
-      size="small"
-      title="Workspace"
-      :bordered="false"
-      content-style="height: 100%; padding: 8px; overflow: auto;"
-      @contextmenu="handleSurfaceContextMenu"
-    >
-      <template #header-extra>
-        <NTooltip>
-          <template #trigger>
-            <NButton quaternary circle size="small" @click="vfs.refreshNodes">
-              <template #icon>
-                <NIcon><ArrowClockwise24Regular /></NIcon>
-              </template>
-            </NButton>
-          </template>
-          Refresh
-        </NTooltip>
-      </template>
-
-      <NTree
-        block-line
-        selectable
-        expand-on-click
-        :data="treeData"
-        :expanded-keys="expandedKeys"
-        :selected-keys="selectedKeys"
-        :node-props="treeNodeProps"
-        :render-prefix="renderTreePrefix"
-        :render-label="renderTreeLabel"
-        @update:expanded-keys="setExpanded"
-        @update:selected-keys="handleTreeSelect"
-      />
-    </NCard>
+  <div class="explorer-root" @contextmenu="handleSurfaceContextMenu">
+    <NTree
+      block-line
+      selectable
+      expand-on-click
+      :data="treeData"
+      :expanded-keys="expandedKeys"
+      :selected-keys="selectedKeys"
+      :node-props="treeNodeProps"
+      :render-prefix="renderTreePrefix"
+      :render-label="renderTreeLabel"
+      @update:expanded-keys="setExpanded"
+      @update:selected-keys="handleTreeSelect"
+    />
 
     <NDropdown
       placement="bottom-start"
@@ -477,25 +451,17 @@ onMounted(async () => {
 <style scoped>
 .explorer-root {
   height: 100%;
+  padding: 8px;
+  padding-bottom: 6em;
+  box-sizing: border-box;
+  overflow: auto;
 }
 
-.explorer-card {
-  height: 100%;
-}
-
-.explorer-card:deep(.n-tree-node-content__text) {
+.explorer-root :deep(.n-tree-node-content__text) {
   max-width: calc(100% - 24px);
 }
 
-:deep(.n-card__content) {
-  height: calc(100% - 8px);
-}
-
-.explorer-scroll {
-  height: 100%;
-}
-
-.explorer-scroll :deep(.tree-node-empty-dir .n-tree-node-content__text) {
+.explorer-root :deep(.tree-node-empty-dir .n-tree-node-content__text) {
   opacity: 0.55;
 }
 </style>

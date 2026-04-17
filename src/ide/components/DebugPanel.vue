@@ -381,7 +381,7 @@ function focusScope(scopeKey: string): void {
       >
     </NCard>
 
-    <NTabs v-model:value="activeTab" type="line" placement="left" size="small" class="debug-tabs">
+    <NTabs v-model:value="activeTab" type="line" placement="left" size="small" class="debug-tabs" animated>
       <NTabPane name="stack" tab="Call Stack" style="overflow-y: auto;">
         <div v-if="callStack.length === 0" class="debug-empty"><span>No stack frames</span></div>
         <NTable v-else size="small" :bordered="false" :single-line="false" class="stack-table">

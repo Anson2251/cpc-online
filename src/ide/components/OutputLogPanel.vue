@@ -86,7 +86,7 @@ watch(
     header-style="padding-bottom: 4px; padding-top: 6px;"
   >
     <template #header>
-      <NTabs v-model:value="activeTab" size="small" class="panel-tabs">
+      <NTabs v-model:value="activeTab" size="small" class="panel-tabs" animated>
         <NTabPane name="output" tab="Output" />
         <NTabPane name="debug" tab="Debug" />
       </NTabs>
