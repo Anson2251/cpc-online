@@ -35,6 +35,7 @@ import {
     Interpreter,
     type DebugSnapshot,
     type TypeInfo,
+    type ExecutionResult,
 } from "@/libs/cpc-core/src/browser-index";
 
 // eslint-disable-next-line no-console
@@ -119,6 +120,22 @@ function serializeSnapshot(snapshot: DebugSnapshot): DebugSnapshot {
             })),
         })),
         error: snapshot.error ? { message: snapshot.error.message, line: snapshot.error.line, column: snapshot.error.column } : undefined,
+    };
+}
+
+function serializeExecutionResult(result: ExecutionResult): ExecutionResult {
+    return {
+        success: result.success,
+        executionTime: result.executionTime,
+        steps: result.steps,
+        error: result.error
+            ? {
+                ...result.error,
+                message: result.error.message,
+                line: result.error.line,
+                column: result.error.column,
+            }
+            : undefined,
     };
 }
 
@@ -310,7 +327,7 @@ self.addEventListener("message", async (event: MessageEvent<RuntimeWorkerRequest
         const doneEvent: RuntimeWorkerDoneEvent = {
             type: "done",
             runId,
-            result,
+            result: serializeExecutionResult(result),
         };
 
         if (payload.debug && !result.success && lastDebugSnapshot) {

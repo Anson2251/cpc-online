@@ -205,7 +205,10 @@ async function runProgram(): Promise<void> {
   if (runtime.lastRunSuccess) {
     message.success("Execution completed");
   } else {
-    message.error(runtime.lastError ?? "Execution failed");
+    const errorMsg = runtime.lastError
+      ? formatErrorMessage(runtime.lastError)
+      : "Execution failed";
+    message.error(errorMsg);
   }
 }
 
@@ -232,8 +235,21 @@ async function debugProgram(): Promise<void> {
   if (runtime.lastRunSuccess) {
     message.success("Debug execution completed");
   } else {
-    message.error(runtime.lastError ?? "Debug execution failed");
+    const errorMsg = runtime.lastError
+      ? formatErrorMessage(runtime.lastError)
+      : "Debug execution failed";
+    message.error(errorMsg);
   }
+}
+
+function formatErrorMessage(error: { message: string; line?: number; column?: number }): string {
+  if (error.line !== undefined) {
+    const location = error.column !== undefined
+      ? `Line ${error.line}, Column ${error.column}`
+      : `Line ${error.line}`;
+    return `${error.message} (${location})`;
+  }
+  return error.message;
 }
 
 function clearAutoSaveTimer(): void {

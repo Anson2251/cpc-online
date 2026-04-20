@@ -47,7 +47,7 @@ export const useRuntimeStore = defineStore("runtime", () => {
     const logs = ref<RuntimeLogEntry[]>([]);
     const running = ref(false);
     const lastRunSuccess = ref<boolean | null>(null);
-    const lastError = ref<string | null>(null);
+    const lastError = ref<{ message: string; line?: number; column?: number } | null>(null);
     const activeFilePath = ref("");
     const debugMode = ref(false);
     const debugSessionActive = ref(false);
@@ -75,7 +75,7 @@ export const useRuntimeStore = defineStore("runtime", () => {
     function finalizeRun(options?: {
         terminateWorker?: boolean;
         success?: boolean | null;
-        error?: string | null;
+        error?: { message: string; line?: number; column?: number } | null;
         logMessage?: string;
         logStream?: "stdout" | "stderr";
         finalSnapshot?: DebugSnapshot;
@@ -174,7 +174,13 @@ export const useRuntimeStore = defineStore("runtime", () => {
                         success: payload.result.success,
                         error: payload.result.success
                             ? null
-                            : (payload.result.error?.message ?? "Execution failed"),
+                            : (payload.result.error
+                                ? {
+                                    message: payload.result.error.message,
+                                    line: payload.result.error.line,
+                                    column: payload.result.error.column,
+                                }
+                                : { message: "Execution failed" }),
                         finalSnapshot: payload.finalSnapshot,
                     });
                     return;
@@ -184,7 +190,7 @@ export const useRuntimeStore = defineStore("runtime", () => {
                     finalizeRun({
                         terminateWorker: true,
                         success: false,
-                        error: payload.message,
+                        error: { message: payload.message },
                         logMessage: payload.message,
                     });
                     return;
@@ -203,7 +209,7 @@ export const useRuntimeStore = defineStore("runtime", () => {
                 finalizeRun({
                     terminateWorker: true,
                     success: false,
-                    error: message,
+                    error: { message },
                     logMessage: message,
                 });
             };
@@ -311,7 +317,7 @@ export const useRuntimeStore = defineStore("runtime", () => {
         finalizeRun({
             terminateWorker: true,
             success: false,
-            error: debugMode.value ? "Debug session exited" : "Execution stopped",
+            error: { message: debugMode.value ? "Debug session exited" : "Execution stopped" },
             logMessage: debugMode.value ? "Debug session exited" : "Execution stopped",
         });
     }
