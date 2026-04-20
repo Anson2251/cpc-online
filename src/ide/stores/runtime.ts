@@ -169,18 +169,26 @@ export const useRuntimeStore = defineStore("runtime", () => {
                 }
 
                 if (payload.type === "done") {
+                    const errorInfo = payload.result.success
+                        ? null
+                        : (payload.result.error
+                            ? {
+                                message: payload.result.error.message,
+                                line: payload.result.error.line,
+                                column: payload.result.error.column,
+                            }
+                            : { message: "Execution failed" });
+                    const errorLogMessage = payload.result.success
+                        ? undefined
+                        : (payload.result.error
+                            ? `${payload.result.error.message} (Line ${payload.result.error.line ?? "?"}, Col ${payload.result.error.column ?? "?"})`
+                            : "Execution failed");
                     finalizeRun({
                         terminateWorker: true,
                         success: payload.result.success,
-                        error: payload.result.success
-                            ? null
-                            : (payload.result.error
-                                ? {
-                                    message: payload.result.error.message,
-                                    line: payload.result.error.line,
-                                    column: payload.result.error.column,
-                                }
-                                : { message: "Execution failed" }),
+                        error: errorInfo,
+                        logMessage: errorLogMessage,
+                        logStream: "stderr",
                         finalSnapshot: payload.finalSnapshot,
                     });
                     return;
