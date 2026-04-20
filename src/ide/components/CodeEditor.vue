@@ -15,6 +15,7 @@ import {
   EditorSelection,
   EditorState,
   RangeSetBuilder,
+  Transaction,
   type Extension,
 } from "@codemirror/state";
 import {
@@ -339,9 +340,17 @@ onMounted(() => {
     return;
   }
 
+  // Create state with empty doc first
   view = new EditorView({
-    state: createEditorState(props.modelValue),
+    state: createEditorState(""),
     parent: host.value,
+  });
+
+  // Set initial content without adding to history
+  // This prevents undo from clearing the initial content
+  view.dispatch({
+    changes: { from: 0, to: 0, insert: props.modelValue },
+    annotations: Transaction.addToHistory.of(false),
   });
 
   requestAnimationFrame(() => {
@@ -366,12 +375,14 @@ watch(
       return;
     }
 
+    // External updates (e.g., file loading) should not be added to undo history
     view.dispatch({
       changes: {
         from: 0,
         to: current.length,
         insert: nextValue,
       },
+      annotations: Transaction.addToHistory.of(false),
     });
   },
 );
