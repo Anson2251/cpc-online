@@ -1,6 +1,34 @@
 /// <reference lib="webworker" />
 
+// Global error handlers for debugging
+self.addEventListener("error", (event) => {
+    // eslint-disable-next-line no-console
+    console.error("[Worker] Global error:", event.error);
+    self.postMessage({
+        type: "crash",
+        runId: 0,
+        message: `Worker error: ${event.error?.message || String(event.error)}`,
+    });
+});
+
+self.addEventListener("unhandledrejection", (event) => {
+    // eslint-disable-next-line no-console
+    console.error("[Worker] Unhandled rejection:", event.reason);
+    self.postMessage({
+        type: "crash",
+        runId: 0,
+        message: `Worker unhandled rejection: ${event.reason?.message || String(event.reason)}`,
+    });
+});
+
+// eslint-disable-next-line no-console
+console.log("[Worker] Script started");
+
 import { indexedDbVfs } from "@/ide/vfs/indexed-db-vfs";
+
+// eslint-disable-next-line no-console
+console.log("[Worker] indexedDbVfs imported");
+
 import {
     BrowserIOImpl,
     DebuggerController,
@@ -8,6 +36,9 @@ import {
     type DebugSnapshot,
     type TypeInfo,
 } from "@/libs/cpc-core/src/browser-index";
+
+// eslint-disable-next-line no-console
+console.log("[Worker] browser-index imported");
 
 import type { RuntimeWorkerDoneEvent, RuntimeWorkerEvent, RuntimeWorkerRequest } from "./worker-messages";
 
@@ -243,7 +274,6 @@ self.addEventListener("message", async (event: MessageEvent<RuntimeWorkerRequest
 
         const source = await indexedDbVfs.readTextFile(filePath);
         const interpreter = new Interpreter(io, {
-            debug: false,
             strictTypeChecking: true,
         });
         activeInterpreter = interpreter;

@@ -64,9 +64,12 @@ export const useRuntimeStore = defineStore("runtime", () => {
     let activeRunResolve: (() => void) | null = null;
 
     function createWorker(): Worker {
-        return new Worker(new URL("../runtime/interpreter.worker.ts", import.meta.url), {
+        console.log("Creating interpreter worker...");
+        const worker = new Worker(new URL("../runtime/interpreter.worker.ts", import.meta.url), {
             type: "module",
         });
+        console.log("Interpreter worker created");
+        return worker;
     }
 
     function finalizeRun(options?: {
@@ -195,6 +198,7 @@ export const useRuntimeStore = defineStore("runtime", () => {
             };
 
             worker.onerror = (error) => {
+                console.error("[Main] Worker onerror:", error);
                 const message = error.message || "Interpreter worker crashed";
                 finalizeRun({
                     terminateWorker: true,
@@ -202,6 +206,10 @@ export const useRuntimeStore = defineStore("runtime", () => {
                     error: message,
                     logMessage: message,
                 });
+            };
+
+            worker.onmessageerror = (error) => {
+                console.error("[Main] Worker onmessageerror:", error);
             };
 
             const request: RuntimeWorkerRequest = {
