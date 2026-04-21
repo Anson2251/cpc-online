@@ -33,7 +33,6 @@ import {
     BrowserIOImpl,
     DebuggerController,
     Interpreter,
-    PseudocodeError,
     type DebugSnapshot,
     type TypeInfo,
     type ExecutionResult,
@@ -124,22 +123,24 @@ function serializeSnapshot(snapshot: DebugSnapshot): DebugSnapshot {
     };
 }
 
-function serializeExecutionResult(result: ExecutionResult): ExecutionResult {
+function serializeExecutionResult(result: ExecutionResult): import("./worker-messages").SerializedExecutionResult {
     if (!result.error) {
-        return result;
+        return {
+            success: result.success,
+            executionTime: result.executionTime,
+            steps: result.steps,
+        };
     }
-
-    const serializedError = new PseudocodeError(
-        result.error.message,
-        result.error.line,
-        result.error.column,
-    );
 
     return {
         success: result.success,
         executionTime: result.executionTime,
         steps: result.steps,
-        error: serializedError,
+        error: {
+            message: result.error.message,
+            line: result.error.line,
+            column: result.error.column,
+        },
     };
 }
 

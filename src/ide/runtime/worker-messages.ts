@@ -1,4 +1,17 @@
-import type { DebugSnapshot, ExecutionResult } from "@/libs/cpc-core/src/browser-index";
+import type { DebugSnapshot } from "@/libs/cpc-core/src/browser-index";
+
+export interface SerializedError {
+    message: string;
+    line?: number;
+    column?: number;
+}
+
+export interface SerializedExecutionResult {
+    success: boolean;
+    executionTime?: number;
+    steps?: number;
+    error?: SerializedError;
+}
 
 export interface RuntimeWorkerRunRequest {
     type: "run";
@@ -32,7 +45,7 @@ export interface RuntimeWorkerLogEvent {
 export interface RuntimeWorkerDoneEvent {
     type: "done";
     runId: number;
-    result: ExecutionResult;
+    result: SerializedExecutionResult;
     finalSnapshot?: DebugSnapshot;
 }
 
