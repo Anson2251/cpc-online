@@ -33,6 +33,7 @@ import {
     BrowserIOImpl,
     DebuggerController,
     Interpreter,
+    PseudocodeError,
     type DebugSnapshot,
     type TypeInfo,
     type ExecutionResult,
@@ -124,18 +125,21 @@ function serializeSnapshot(snapshot: DebugSnapshot): DebugSnapshot {
 }
 
 function serializeExecutionResult(result: ExecutionResult): ExecutionResult {
+    if (!result.error) {
+        return result;
+    }
+
+    const serializedError = new PseudocodeError(
+        result.error.message,
+        result.error.line,
+        result.error.column,
+    );
+
     return {
         success: result.success,
         executionTime: result.executionTime,
         steps: result.steps,
-        error: result.error
-            ? {
-                ...result.error,
-                message: result.error.message,
-                line: result.error.line,
-                column: result.error.column,
-            }
-            : undefined,
+        error: serializedError,
     };
 }
 

@@ -16,10 +16,14 @@ import {
   NIcon,
   NTree,
   NPerformantEllipsis,
+  NModal,
+  NInput,
+  NButton,
+  NSpace,
   type DropdownOption,
   type TreeOption,
 } from "naive-ui";
-import { computed, h, onMounted, ref } from "vue";
+import { computed, h, onMounted, ref, nextTick } from "vue";
 
 import { useVfsStore } from "@/ide/stores/vfs";
 import { exportDirectoryToZip, triggerBrowserDownload } from "@/ide/utils/export-zip";
@@ -41,6 +45,16 @@ const itemMenuX = ref(0);
 const itemMenuY = ref(0);
 const itemTargetPath = ref("/");
 const itemTargetKind = ref<"file" | "directory">("file");
+
+const modalVisible = ref(false);
+const modalType = ref<"new-file" | "new-folder" | "rename" | "delete">("new-file");
+const modalInputValue = ref("");
+const modalTitle = ref("");
+const modalMessage = ref("");
+const modalTargetDirectory = ref("/");
+const modalResolve = ref<((value: string | boolean) => void) | null>(null);
+const inputRef = ref();
+const modalError = ref("");
 
 const selectedKeys = computed(() => (vfs.activePath ? [vfs.activePath] : []));
 
@@ -237,6 +251,88 @@ function hideMenus(): void {
   itemMenuVisible.value = false;
 }
 
+function showModal(
+  type: "new-file" | "new-folder" | "rename" | "delete",
+  title: string,
+  message: string,
+  defaultValue = "",
+): Promise<string | boolean> {
+  modalType.value = type;
+  modalTitle.value = title;
+  modalMessage.value = message;
+  modalInputValue.value = defaultValue;
+  modalVisible.value = true;
+  modalError.value = "";
+
+  nextTick(() => {
+    if (inputRef.value && type !== "delete") {
+      inputRef.value.focus();
+      if (defaultValue) {
+        inputRef.value.select();
+      }
+    }
+  });
+
+  return new Promise((resolve) => {
+    modalResolve.value = resolve;
+  });
+}
+
+const INVALID_CHARS_REGEX = /[<>:"|?*\\/]/;
+
+function hasControlChars(name: string): boolean {
+  for (let i = 0; i < name.length; i++) {
+    const code = name.charCodeAt(i);
+    if (code < 32) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function validateFileName(name: string): string | null {
+  if (!name || !name.trim()) {
+    return "File name cannot be empty";
+  }
+
+  if (INVALID_CHARS_REGEX.test(name) || hasControlChars(name)) {
+    return "File name contains invalid characters. Cannot include: < > : \" | ? * \\ / or control characters";
+  }
+
+  if (name.startsWith(".") || name.endsWith(".")) {
+    return "File name cannot start or end with a dot";
+  }
+
+  if (name.length > 255) {
+    return "File name is too long (max 255 characters)";
+  }
+
+  return null;
+}
+
+function handleModalConfirm(): void {
+  if (modalType.value === "delete") {
+    modalResolve.value?.(true);
+    modalVisible.value = false;
+    return;
+  }
+
+  const name = modalInputValue.value.trim();
+  const validationError = validateFileName(name);
+  if (validationError) {
+    modalError.value = validationError;
+    return;
+  }
+
+  modalResolve.value?.(name);
+  modalVisible.value = false;
+}
+
+function handleModalCancel(): void {
+  modalResolve.value?.(modalType.value === "delete" ? false : "");
+  modalVisible.value = false;
+}
+
 function handleTreeContextMenu(event: MouseEvent, option: TreeOption): void {
   event.stopPropagation();
   event.preventDefault();
@@ -302,22 +398,42 @@ async function handleSurfaceAction(key: string | number): Promise<void> {
   hideMenus();
 
   if (key === "new-file") {
-    const name = window.prompt("New file name", "new-file.pseudo")?.trim();
+    const name = await showModal(
+      "new-file",
+      "New File",
+      "Enter file name:",
+      "new-file.pseudo",
+    );
     if (!name) {
       return;
     }
-    await vfs.createFile(name, targetDirectory);
-    expandDirectoryPath(targetDirectory);
-    emit("fileSelected", vfs.activePath);
+    try {
+      await vfs.createFile(name as string, targetDirectory);
+      expandDirectoryPath(targetDirectory);
+      emit("fileSelected", vfs.activePath);
+    } catch (error) {
+      modalError.value = error instanceof Error ? error.message : "Failed to create file";
+      modalVisible.value = true;
+    }
     return;
   }
 
   if (key === "new-folder") {
-    const name = window.prompt("New folder name", "folder")?.trim();
+    const name = await showModal(
+      "new-folder",
+      "New Folder",
+      "Enter folder name:",
+      "folder",
+    );
     if (!name) {
       return;
     }
-    await vfs.createDirectory(name, targetDirectory);
+    try {
+      await vfs.createDirectory(name as string, targetDirectory);
+    } catch (error) {
+      modalError.value = error instanceof Error ? error.message : "Failed to create folder";
+      modalVisible.value = true;
+    }
     return;
   }
 
@@ -332,22 +448,42 @@ async function handleItemAction(key: string | number): Promise<void> {
   hideMenus();
 
   if (key === "new-file") {
-    const name = window.prompt("New file name", "new-file.pseudo")?.trim();
+    const name = await showModal(
+      "new-file",
+      "New File",
+      "Enter file name:",
+      "new-file.pseudo",
+    );
     if (!name) {
       return;
     }
-    await vfs.createFile(name, targetDirectory);
-    expandDirectoryPath(targetDirectory);
-    emit("fileSelected", vfs.activePath);
+    try {
+      await vfs.createFile(name as string, targetDirectory);
+      expandDirectoryPath(targetDirectory);
+      emit("fileSelected", vfs.activePath);
+    } catch (error) {
+      modalError.value = error instanceof Error ? error.message : "Failed to create file";
+      modalVisible.value = true;
+    }
     return;
   }
 
   if (key === "new-folder") {
-    const name = window.prompt("New folder name", "folder")?.trim();
+    const name = await showModal(
+      "new-folder",
+      "New Folder",
+      "Enter folder name:",
+      "folder",
+    );
     if (!name) {
       return;
     }
-    await vfs.createDirectory(name, targetDirectory);
+    try {
+      await vfs.createDirectory(name as string, targetDirectory);
+    } catch (error) {
+      modalError.value = error instanceof Error ? error.message : "Failed to create folder";
+      modalVisible.value = true;
+    }
     return;
   }
 
@@ -383,16 +519,30 @@ async function handleItemAction(key: string | number): Promise<void> {
   if (key === "rename") {
     const currentNameParts = itemTargetPath.value.split("/").filter(Boolean);
     const currentName = currentNameParts[currentNameParts.length - 1] ?? "";
-    const nextName = window.prompt("Rename to", currentName)?.trim();
+    const nextName = await showModal(
+      "rename",
+      "Rename",
+      "Enter new name:",
+      currentName,
+    );
     if (!nextName || nextName === currentName) {
       return;
     }
-    await vfs.renamePath(itemTargetPath.value, nextName);
+    try {
+      await vfs.renamePath(itemTargetPath.value, nextName as string);
+    } catch (error) {
+      modalError.value = error instanceof Error ? error.message : "Failed to rename";
+      modalVisible.value = true;
+    }
     return;
   }
 
   if (key === "delete") {
-    const confirmed = window.confirm(`Delete ${itemTargetPath.value}?`);
+    const confirmed = await showModal(
+      "delete",
+      "Confirm Delete",
+      `Are you sure you want to delete ${itemTargetPath.value}?`,
+    );
     if (!confirmed) {
       return;
     }
@@ -445,6 +595,22 @@ onMounted(async () => {
       @clickoutside="hideMenus"
       @select="handleItemAction"
     />
+
+    <NModal v-model:show="modalVisible" preset="card" :title="modalTitle" style="width: 400px">
+      <template v-if="modalType !== 'delete'">
+        <NInput ref="inputRef" v-model:value="modalInputValue" :placeholder="modalMessage" @keyup.enter="handleModalConfirm" />
+        <p v-if="modalError" class="modal-error">{{ modalError }}</p>
+      </template>
+      <template v-else>
+        <p>{{ modalMessage }}</p>
+      </template>
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="handleModalCancel">Cancel</NButton>
+          <NButton type="primary" @click="handleModalConfirm">Confirm</NButton>
+        </NSpace>
+      </template>
+    </NModal>
   </div>
 </template>
 
@@ -463,5 +629,12 @@ onMounted(async () => {
 
 .explorer-root :deep(.tree-node-empty-dir .n-tree-node-content__text) {
   opacity: 0.55;
+}
+
+.modal-error {
+  color: #d03050;
+  font-size: 12px;
+  margin-top: 8px;
+  margin-bottom: 0;
 }
 </style>

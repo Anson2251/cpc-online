@@ -82,11 +82,7 @@ export const useVfsStore = defineStore("vfs", () => {
         const filePath = targetDirectory === "/" ? `/${name}` : `${targetDirectory}/${name}`;
         const existing = await indexedDbVfs.getEntry(filePath);
         if (existing) {
-            if (existing.kind === "directory") {
-                throw new Error(`A folder with the same name already exists: ${filePath}`);
-            }
-            await openFile(filePath);
-            return;
+            throw new Error(`A file or folder with the same name already exists: ${name}`);
         }
 
         await indexedDbVfs.createTextFile(filePath);
@@ -100,6 +96,10 @@ export const useVfsStore = defineStore("vfs", () => {
         targetDirectory = currentDirectory.value,
     ): Promise<void> {
         const directoryPath = targetDirectory === "/" ? `/${name}` : `${targetDirectory}/${name}`;
+        const existing = await indexedDbVfs.getEntry(directoryPath);
+        if (existing) {
+            throw new Error(`A file or folder with the same name already exists: ${name}`);
+        }
         await indexedDbVfs.createDirectory(directoryPath);
         await refreshDirectoryWithFallback(currentDirectory.value);
         await refreshNodes();
